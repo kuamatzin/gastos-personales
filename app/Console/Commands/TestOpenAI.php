@@ -36,6 +36,19 @@ class TestOpenAI extends Command
             $result = $openAI->extractExpenseData($text);
             
             $this->info("\n✅ Expense Data Extracted:");
+            
+            // Get category name if ID exists
+            $categoryDisplay = 'Not inferred';
+            if (isset($result['category_id'])) {
+                $category = \App\Models\Category::find($result['category_id']);
+                if ($category) {
+                    $categoryDisplay = ($category->icon ?? '📋') . ' ' . $category->name;
+                    if ($category->parent) {
+                        $categoryDisplay = $category->parent->icon . ' ' . $category->parent->name . ' > ' . $category->name;
+                    }
+                }
+            }
+            
             $this->table(
                 ['Field', 'Value'],
                 [
@@ -43,7 +56,7 @@ class TestOpenAI extends Command
                     ['Description', $result['description']],
                     ['Date', $result['date']],
                     ['Merchant', $result['merchant_name'] ?? 'N/A'],
-                    ['Category', $result['category_id'] ?? 'Not inferred'],
+                    ['Category', $categoryDisplay],
                     ['Category Confidence', isset($result['category_confidence']) ? round($result['category_confidence'] * 100) . '%' : 'N/A'],
                     ['Overall Confidence', round($result['confidence'] * 100) . '%'],
                 ]
