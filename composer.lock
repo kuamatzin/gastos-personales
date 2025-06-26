@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3bc42874fe8fcb9baaaab6995434d7c8",
+    "content-hash": "8219cff9f2010307db90ad4f9f7156d9",
     "packages": [
         {
             "name": "brick/math",
@@ -886,16 +886,16 @@
         },
         {
             "name": "google/cloud-speech",
-            "version": "v2.1.0",
+            "version": "v1.20.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-speech.git",
-                "reference": "d8db7ee9de61453d2ea0d6dd3596b45a3d29b637"
+                "reference": "300744542eb67fc977380419731f053e4e5ccd82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-speech/zipball/d8db7ee9de61453d2ea0d6dd3596b45a3d29b637",
-                "reference": "d8db7ee9de61453d2ea0d6dd3596b45a3d29b637",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-speech/zipball/300744542eb67fc977380419731f053e4e5ccd82",
+                "reference": "300744542eb67fc977380419731f053e4e5ccd82",
                 "shasum": ""
             },
             "require": {
@@ -937,9 +937,9 @@
             ],
             "description": "Cloud Speech Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-speech/tree/v2.1.0"
+                "source": "https://github.com/googleapis/google-cloud-php-speech/tree/v1.20.1"
             },
-            "time": "2025-06-18T20:58:13+00:00"
+            "time": "2025-01-24T21:24:06+00:00"
         },
         {
             "name": "google/cloud-vision",
