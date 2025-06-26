@@ -20,15 +20,28 @@ class Expense extends Model
         'category_confidence',
         'input_type',
         'status',
-        'merchant_name'
+        'merchant_name',
+        'confirmed_at',
+        'rejected_at',
+        'rejection_reason',
+        'metadata'
     ];
 
     protected $casts = [
         'expense_date' => 'date',
         'amount' => 'decimal:2',
         'confidence_score' => 'float',
-        'category_confidence' => 'float'
+        'category_confidence' => 'float',
+        'confirmed_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'metadata' => 'array'
     ];
+
+    const STATUS_PENDING = 'pending';
+    const STATUS_CONFIRMED = 'confirmed';
+    const STATUS_AUTO_CONFIRMED = 'auto_confirmed';
+    const STATUS_REJECTED = 'rejected';
+    const STATUS_NEEDS_REVIEW = 'needs_review';
 
     public function user(): BelongsTo
     {
