@@ -244,4 +244,17 @@ class TelegramService
     {
         return $this->token;
     }
+
+    /**
+     * Send chat action (typing indicator)
+     */
+    public function sendChatAction(string $chatId, string $action = 'typing'): array
+    {
+        $response = Http::post("{$this->apiUrl}/sendChatAction", [
+            'chat_id' => $chatId,
+            'action' => $action
+        ]);
+
+        return $response->json();
+    }
 }

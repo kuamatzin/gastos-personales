@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessExpenseText;
+use App\Models\User;
 use App\Services\TelegramService;
 use App\Telegram\Commands\HelpCommand;
 use App\Telegram\Commands\StartCommand;
@@ -20,6 +21,10 @@ class TelegramWebhookController extends Controller
 
     public function handle(Request $request)
     {
+        // Add logging
+        Log::info('Testing webhook');
+        Log::info('Telegram webhook request', ['request' => $request->all()]);
+
         // Verify webhook secret
         if ($request->header('X-Telegram-Bot-Api-Secret-Token') !== config('services.telegram.webhook_secret')) {
             Log::warning('Invalid Telegram webhook secret');
@@ -43,7 +48,7 @@ class TelegramWebhookController extends Controller
     {
         $chatId = $message['chat']['id'];
         $userId = $message['from']['id'];
-        
+
         // Register or update user
         $user = $this->registerOrUpdateUser($message['from']);
 
@@ -56,10 +61,10 @@ class TelegramWebhookController extends Controller
         // Handle different message types
         if (isset($message['text'])) {
             $text = $message['text'];
-            
+
             // Handle commands
             if (str_starts_with($text, '/')) {
-                $this->handleCommand($chatId, $userId, $text, $message);
+                $this->handleCommand($chatId, $userId, $text, $message, $user);
             } else {
                 // Process as expense
                 $this->processTextExpense($chatId, $userId, $text, $message['message_id']);
@@ -73,7 +78,7 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function handleCommand(string $chatId, string $userId, string $command, array $message)
+    private function handleCommand(string $chatId, string $userId, string $command, array $message, User $user)
     {
         $commandParts = explode(' ', $command);
         $commandName = $commandParts[0];
@@ -81,10 +86,10 @@ class TelegramWebhookController extends Controller
 
         switch ($commandName) {
             case '/start':
-                (new StartCommand($this->telegram))->handle($chatId, $userId, $params, $message);
+                (new StartCommand($this->telegram, $user))->handle($message, implode(' ', $params));
                 break;
             case '/help':
-                (new HelpCommand($this->telegram))->handle($chatId, $userId, $params, $message);
+                (new HelpCommand($this->telegram, $user))->handle($message, implode(' ', $params));
                 break;
             default:
                 $this->telegram->sendMessage($chatId, "❓ Unknown command. Type /help for available commands.");
@@ -118,20 +123,20 @@ class TelegramWebhookController extends Controller
     private function registerOrUpdateUser(array $telegramUser): \App\Models\User
     {
         $user = \App\Models\User::firstOrNew(['telegram_id' => $telegramUser['id']]);
-        
+
         $user->telegram_username = $telegramUser['username'] ?? null;
         $user->telegram_first_name = $telegramUser['first_name'] ?? null;
         $user->telegram_last_name = $telegramUser['last_name'] ?? null;
-        
+
         if (!$user->exists) {
             $user->name = trim(($telegramUser['first_name'] ?? '') . ' ' . ($telegramUser['last_name'] ?? ''));
             $user->email = 'telegram_' . $telegramUser['id'] . '@expensebot.local';
             $user->password = bcrypt(str()->random(32));
             $user->is_active = true;
         }
-        
+
         $user->save();
-        
+
         return $user;
     }
 
@@ -139,11 +144,11 @@ class TelegramWebhookController extends Controller
     {
         // Send processing message
         $processingMessage = $this->telegram->sendMessage($chatId, "🔄 Processing your expense...");
-        
+
         // Queue the job
         ProcessExpenseText::dispatch($userId, $text, $messageId)
             ->onQueue('high');
-        
+
         // Delete processing message after a delay
         ProcessExpenseText::dispatch($userId, 'delete_message', $processingMessage['result']['message_id'])
             ->delay(now()->addSeconds(2))

@@ -11,7 +11,7 @@ class StartCommand extends Command
     {
         $this->sendTyping();
         
-        $firstName = $this->user->first_name ?? 'there';
+        $firstName = $this->user->telegram_first_name ?? 'there';
         
         $welcomeMessage = "👋 Welcome {$firstName} to ExpenseBot!\n\n";
         $welcomeMessage .= "I'm here to help you track your expenses easily and efficiently.\n\n";
