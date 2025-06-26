@@ -2,22 +2,16 @@
 
 namespace App\Jobs;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\Expense;
+use App\Services\CategoryInferenceService;
+use App\Services\CategoryLearningService;
+use App\Services\OpenAIService;
+use App\Services\TelegramService;
+use Illuminate\Support\Facades\DB;
 
-class ProcessExpenseText implements ShouldQueue
+class ProcessExpenseText extends BaseExpenseProcessor
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public $tries = 3;
-    public $timeout = 120;
-
-    protected string $userId;
     protected string $text;
-    protected int $messageId;
 
     /**
      * Create a new job instance.
@@ -32,14 +26,91 @@ class ProcessExpenseText implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(
+        OpenAIService $openAIService,
+        CategoryInferenceService $categoryService,
+        CategoryLearningService $learningService,
+        TelegramService $telegramService
+    ): void {
+        $this->logStart('text', ['text' => $this->text]);
+        
+        try {
+            $user = $this->getUser();
+            
+            // Step 1: Extract expense data using OpenAI
+            $expenseData = $openAIService->extractExpenseData($this->text);
+            
+            // Step 2: Infer category if not already set
+            if (!isset($expenseData['category_id'])) {
+                $categoryInference = $categoryService->inferCategory(
+                    $user,
+                    $expenseData['description'],
+                    $expenseData['amount']
+                );
+                
+                $expenseData['category_id'] = $categoryInference['category_id'];
+                $expenseData['category_confidence'] = $categoryInference['confidence'];
+                $expenseData['inference_method'] = $categoryInference['method'];
+            }
+            
+            // Step 3: Create pending expense record
+            $expense = DB::transaction(function () use ($user, $expenseData) {
+                return Expense::create([
+                    'user_id' => $user->id,
+                    'amount' => $expenseData['amount'],
+                    'currency' => $expenseData['currency'] ?? 'MXN',
+                    'description' => $expenseData['description'],
+                    'category_id' => $expenseData['category_id'],
+                    'suggested_category_id' => $expenseData['category_id'],
+                    'expense_date' => $expenseData['date'] ?? now()->toDateString(),
+                    'raw_input' => $this->text,
+                    'confidence_score' => $expenseData['confidence'] ?? 0.8,
+                    'category_confidence' => $expenseData['category_confidence'] ?? 0.8,
+                    'input_type' => 'text',
+                    'status' => 'pending',
+                    'merchant_name' => $expenseData['merchant_name'] ?? null,
+                ]);
+            });
+            
+            // Step 4: Store context for confirmation handling
+            $this->storeContext([
+                'expense_id' => $expense->id,
+                'expense_data' => $expenseData,
+                'original_text' => $this->text,
+            ]);
+            
+            // Step 5: Send confirmation message with category
+            $telegramService->sendExpenseConfirmationWithCategory(
+                $this->userId,
+                array_merge($expenseData, ['expense_id' => $expense->id])
+            );
+            
+            $this->logComplete('text', [
+                'expense_id' => $expense->id,
+                'category_id' => $expense->category_id,
+                'amount' => $expense->amount,
+                'inference_method' => $expenseData['inference_method'] ?? 'unknown',
+            ]);
+            
+        } catch (\Exception $e) {
+            // Log the error
+            \Log::error('Failed to process text expense', [
+                'user_id' => $this->userId,
+                'text' => $this->text,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Re-throw to trigger retry mechanism
+            throw $e;
+        }
+    }
+
+    /**
+     * Get user-friendly failure message
+     */
+    protected function getFailureMessage(): string
     {
-        // TODO: This will be implemented in Task #5
-        // For now, just log the expense
-        \Log::info('Processing expense text', [
-            'user_id' => $this->userId,
-            'text' => $this->text,
-            'message_id' => $this->messageId,
-        ]);
+        return "Please try sending your expense in a simpler format, like '150 lunch at restaurant'.";
     }
 }
