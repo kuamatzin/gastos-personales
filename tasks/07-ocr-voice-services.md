@@ -21,7 +21,7 @@ GOOGLE_CLOUD_SPEECH_ENABLED=true
 
 ### 2. Install Google Cloud Libraries
 ```bash
-composer require google/cloud-vision
+composer require "google/cloud-vision": "^1.0.0"
 composer require google/cloud-speech
 ```
 
@@ -139,17 +139,17 @@ class DocumentImageStrategy implements ProcessingStrategy
 class OCRService
 {
     private $vision;
-    
+
     public function extractTextFromImage(string $imagePath): array
     {
         $image = file_get_contents($imagePath);
         $response = $this->vision->image($image)
             ->text()
             ->detectIn();
-            
+
         $text = $response->text();
         $confidence = $this->calculateConfidence($response);
-        
+
         return [
             'text' => $text,
             'confidence' => $confidence,
@@ -165,11 +165,11 @@ class OCRService
 class SpeechToTextService
 {
     private $speech;
-    
+
     public function transcribeAudio(string $audioPath, string $languageCode = 'es-MX'): array
     {
         $audio = file_get_contents($audioPath);
-        
+
         $config = [
             'encoding' => 'OGG_OPUS',
             'sampleRateHertz' => 48000,
@@ -177,9 +177,9 @@ class SpeechToTextService
             'enableAutomaticPunctuation' => true,
             'model' => 'latest_long'
         ];
-        
+
         $response = $this->speech->recognize($audio, $config);
-        
+
         return [
             'transcript' => $response->transcript(),
             'confidence' => $response->confidence(),

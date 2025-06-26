@@ -47,4 +47,10 @@ return [
         'temperature' => env('OPENAI_TEMPERATURE', 0.1),
     ],
 
+    'google_sheets' => [
+        'enabled' => env('GOOGLE_SHEETS_ENABLED', true),
+        'credentials_path' => env('GOOGLE_SHEETS_CREDENTIALS_PATH', storage_path('app/google-credentials.json')),
+        'spreadsheet_id' => env('GOOGLE_SHEETS_ID'),
+    ],
+
 ];
