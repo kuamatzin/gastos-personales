@@ -142,12 +142,20 @@ class TelegramWebhookController extends Controller
 
     private function processTextExpense(string $chatId, string $userId, string $text, int $messageId)
     {
+        Log::info('Processing text expense', ['chatId' => $chatId, 'userId' => $userId, 'text' => $text]);
+        
         // Send processing message
         $processingMessage = $this->telegram->sendMessage($chatId, "🔄 Processing your expense...");
+        Log::info('Processing message sent', ['result' => $processingMessage]);
 
         // Queue the job
-        ProcessExpenseText::dispatch($userId, $text, $messageId)
-            ->onQueue('high');
+        try {
+            ProcessExpenseText::dispatch($userId, $text, $messageId)
+                ->onQueue('high');
+            Log::info('Job dispatched successfully');
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch job', ['error' => $e->getMessage()]);
+        }
 
         // Delete processing message after a delay
         ProcessExpenseText::dispatch($userId, 'delete_message', $processingMessage['result']['message_id'])

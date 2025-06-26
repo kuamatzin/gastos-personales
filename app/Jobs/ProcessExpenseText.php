@@ -32,6 +32,12 @@ class ProcessExpenseText extends BaseExpenseProcessor
         CategoryLearningService $learningService,
         TelegramService $telegramService
     ): void {
+        // Handle special commands
+        if ($this->text === 'delete_message') {
+            $telegramService->deleteMessage($this->userId, $this->messageId);
+            return;
+        }
+        
         $this->logStart('text', ['text' => $this->text]);
         
         try {

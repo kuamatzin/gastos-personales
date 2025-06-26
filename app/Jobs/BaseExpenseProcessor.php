@@ -10,7 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Cache;
 
 abstract class BaseExpenseProcessor implements ShouldQueue
 {
@@ -68,7 +68,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     {
         $key = $this->getContextKey();
         
-        Redis::setex($key, 3600, json_encode($data)); // 1 hour TTL
+        Cache::put($key, $data, now()->addHour()); // 1 hour TTL
         
         Log::info('Stored expense context', [
             'key' => $key,
@@ -83,9 +83,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     protected function getContext(): ?array
     {
         $key = $this->getContextKey();
-        $data = Redis::get($key);
-        
-        return $data ? json_decode($data, true) : null;
+        return Cache::get($key);
     }
 
     /**
@@ -93,7 +91,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
      */
     protected function clearContext(): void
     {
-        Redis::del($this->getContextKey());
+        Cache::forget($this->getContextKey());
     }
 
     /**
@@ -152,7 +150,10 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     protected function getProcessingTime(): float
     {
         if (property_exists($this, 'job') && $this->job) {
-            return round(microtime(true) - $this->job->payload()['pushedAt'], 2);
+            $payload = $this->job->payload();
+            if (isset($payload['pushedAt'])) {
+                return round(microtime(true) - $payload['pushedAt'], 2);
+            }
         }
         
         return 0;
