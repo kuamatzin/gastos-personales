@@ -53,4 +53,14 @@ return [
         'spreadsheet_id' => env('GOOGLE_SHEETS_ID'),
     ],
 
+    'google_cloud' => [
+        'project_id' => env('GOOGLE_CLOUD_PROJECT_ID'),
+        'credentials_path' => env('GOOGLE_CLOUD_CREDENTIALS_PATH', storage_path('app/google-cloud-credentials.json')),
+        'vision_enabled' => env('GOOGLE_CLOUD_VISION_ENABLED', true),
+        'speech_enabled' => env('GOOGLE_CLOUD_SPEECH_ENABLED', true),
+    ],
+
+    'ffmpeg_path' => env('FFMPEG_PATH', 'ffmpeg'),
+    'ffprobe_path' => env('FFPROBE_PATH', 'ffprobe'),
+
 ];
