@@ -236,4 +236,12 @@ class TelegramService
 
         return null;
     }
+    
+    /**
+     * Get bot token (for file downloads)
+     */
+    public function getToken(): string
+    {
+        return $this->token;
+    }
 }

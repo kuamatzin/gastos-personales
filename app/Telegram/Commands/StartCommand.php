@@ -2,41 +2,44 @@
 
 namespace App\Telegram\Commands;
 
-use App\Services\TelegramService;
-
-class StartCommand
+class StartCommand extends Command
 {
-    private TelegramService $telegram;
-
-    public function __construct(TelegramService $telegram)
+    protected string $name = 'start';
+    protected bool $requiresAuth = false;
+    
+    public function handle(array $message, string $params = ''): void
     {
-        $this->telegram = $telegram;
-    }
-
-    public function handle(string $chatId, string $userId, array $params, array $message): void
-    {
-        $firstName = $message['from']['first_name'] ?? 'there';
+        $this->sendTyping();
         
-        $welcomeMessage = "🎉 Welcome to ExpenseBot, {$firstName}!\n\n";
+        $firstName = $this->user->first_name ?? 'there';
+        
+        $welcomeMessage = "👋 Welcome {$firstName} to ExpenseBot!\n\n";
         $welcomeMessage .= "I'm here to help you track your expenses easily and efficiently.\n\n";
-        $welcomeMessage .= "📝 *How to use me:*\n";
-        $welcomeMessage .= "• Send a text message with your expense (e.g., \"50 tacos\")\n";
-        $welcomeMessage .= "• Send a voice message describing your expense\n";
-        $welcomeMessage .= "• Send a photo of your receipt\n\n";
-        $welcomeMessage .= "💡 *Examples:*\n";
-        $welcomeMessage .= "• `150 uber to airport`\n";
-        $welcomeMessage .= "• `$45.50 lunch at restaurant`\n";
-        $welcomeMessage .= "• `200 pesos groceries at walmart`\n\n";
-        $welcomeMessage .= "🤖 I'll automatically categorize your expenses and sync them to your Google Sheets!\n\n";
-        $welcomeMessage .= "Type /help to see all available commands.";
-
+        $welcomeMessage .= "📸 *Send me a photo* of a receipt\n";
+        $welcomeMessage .= "🎤 *Send me a voice note* describing your expense\n";
+        $welcomeMessage .= "💬 *Send me a text* with expense details\n\n";
+        $welcomeMessage .= "I'll automatically categorize your expenses and keep track of your spending!\n\n";
+        $welcomeMessage .= "📊 Use /help to see all available commands.";
+        
+        // Create quick action keyboard
         $keyboard = [
             [
-                ['text' => '📖 View Help', 'callback_data' => 'show_help'],
-                ['text' => '🚀 Send First Expense', 'callback_data' => 'start_expense']
+                ['text' => '📊 Today\'s Expenses', 'callback_data' => 'cmd_expenses_today'],
+                ['text' => '📅 This Month', 'callback_data' => 'cmd_expenses_month']
+            ],
+            [
+                ['text' => '📈 Statistics', 'callback_data' => 'cmd_stats'],
+                ['text' => '❓ Help', 'callback_data' => 'cmd_help']
             ]
         ];
-
-        $this->telegram->sendMessageWithKeyboard($chatId, $welcomeMessage, $keyboard);
+        
+        $this->replyWithKeyboard($welcomeMessage, $keyboard, ['parse_mode' => 'Markdown']);
+        
+        // Update user's started_at if first time
+        if (!$this->user->started_at) {
+            $this->user->update(['started_at' => now()]);
+        }
+        
+        $this->logExecution('started');
     }
 }

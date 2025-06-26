@@ -2,56 +2,158 @@
 
 namespace App\Telegram\Commands;
 
-use App\Services\TelegramService;
+use App\Telegram\CommandRouter;
 
-class HelpCommand
+class HelpCommand extends Command
 {
-    private TelegramService $telegram;
-
-    public function __construct(TelegramService $telegram)
+    protected string $name = 'help';
+    
+    public function handle(array $message, string $params = ''): void
     {
-        $this->telegram = $telegram;
-    }
-
-    public function handle(string $chatId, string $userId, array $params, array $message): void
-    {
-        $helpMessage = "📚 *ExpenseBot Help*\n\n";
+        $this->sendTyping();
         
-        $helpMessage .= "*📝 Recording Expenses:*\n";
-        $helpMessage .= "Simply send me a message with your expense details:\n";
-        $helpMessage .= "• Text: `amount description`\n";
-        $helpMessage .= "• Voice: Record a voice message\n";
-        $helpMessage .= "• Photo: Send a receipt photo\n\n";
+        // If specific command help requested
+        if (!empty($params)) {
+            $this->showCommandHelp($params);
+            return;
+        }
         
-        $helpMessage .= "*💰 Format Examples:*\n";
-        $helpMessage .= "• `50 tacos`\n";
-        $helpMessage .= "• `$120.50 uber to airport`\n";
-        $helpMessage .= "• `200 pesos starbucks coffee`\n";
-        $helpMessage .= "• `lunch 85.50 mxn`\n\n";
+        // Show general help
+        $helpMessage = "📚 *ExpenseBot Commands*\n\n";
+        $helpMessage .= "*Basic Usage:*\n";
+        $helpMessage .= "• Send text: `50 coffee at starbucks`\n";
+        $helpMessage .= "• Send voice note with expense details\n";
+        $helpMessage .= "• Send photo of receipt\n\n";
         
-        $helpMessage .= "*🏷️ Categories:*\n";
-        $helpMessage .= "I'll automatically categorize your expenses:\n";
-        $helpMessage .= "• 🍽️ Food & Dining\n";
-        $helpMessage .= "• 🚗 Transportation\n";
-        $helpMessage .= "• 🛍️ Shopping\n";
-        $helpMessage .= "• 🎬 Entertainment\n";
-        $helpMessage .= "• 🏥 Health & Wellness\n";
-        $helpMessage .= "• And more!\n\n";
+        $helpMessage .= "*📊 Expense Commands:*\n";
+        $helpMessage .= "/expenses_today - Today's expenses\n";
+        $helpMessage .= "/expenses_week - This week's expenses\n";
+        $helpMessage .= "/expenses_month - This month's expenses\n\n";
         
-        $helpMessage .= "*📊 Commands:*\n";
-        $helpMessage .= "/start - Welcome message\n";
+        $helpMessage .= "*📈 Analytics Commands:*\n";
+        $helpMessage .= "/category_spending - Spending by category\n";
+        $helpMessage .= "/top_categories - Top spending categories\n";
+        $helpMessage .= "/stats - Statistics and insights\n\n";
+        
+        $helpMessage .= "*📤 Other Commands:*\n";
+        $helpMessage .= "/export - Export expenses to file\n";
         $helpMessage .= "/help - Show this help\n";
-        $helpMessage .= "/expenses_today - Today's expenses *(coming soon)*\n";
-        $helpMessage .= "/expenses_month - Monthly summary *(coming soon)*\n\n";
+        $helpMessage .= "/cancel - Cancel current operation\n\n";
         
         $helpMessage .= "*💡 Tips:*\n";
-        $helpMessage .= "• Be specific in descriptions for better categorization\n";
-        $helpMessage .= "• Include merchant names when possible\n";
-        $helpMessage .= "• Default currency is MXN\n";
-        $helpMessage .= "• I learn from your corrections!\n\n";
+        $helpMessage .= "• Use natural language for expenses\n";
+        $helpMessage .= "• Include merchant names for better categorization\n";
+        $helpMessage .= "• Voice notes work in Spanish and English\n\n";
         
-        $helpMessage .= "Questions? Just ask! I'm here to help 🤖";
-
-        $this->telegram->sendMessage($chatId, $helpMessage);
+        $helpMessage .= "Type `/help <command>` for detailed help on any command.";
+        
+        $this->reply($helpMessage, ['parse_mode' => 'Markdown']);
+        
+        $this->logExecution('general_help');
+    }
+    
+    /**
+     * Show help for specific command
+     */
+    private function showCommandHelp(string $command): void
+    {
+        // Remove leading slash if present
+        $command = ltrim($command, '/');
+        
+        $helpTexts = [
+            'expenses_today' => [
+                'title' => '📊 Today\'s Expenses',
+                'description' => 'Shows all expenses recorded today with totals by category.',
+                'usage' => [
+                    '/expenses_today - Show today\'s expenses',
+                    '/hoy - Spanish alias'
+                ],
+                'examples' => [
+                    '/expenses_today',
+                    '/today'
+                ]
+            ],
+            'expenses_month' => [
+                'title' => '📅 Monthly Expenses',
+                'description' => 'Shows expenses for the current or specified month with category breakdown and comparison to previous month.',
+                'usage' => [
+                    '/expenses_month - Current month',
+                    '/expenses_month <month> - Specific month',
+                    '/mes - Spanish alias'
+                ],
+                'examples' => [
+                    '/expenses_month',
+                    '/expenses_month january',
+                    '/expenses_month enero',
+                    '/mes marzo'
+                ]
+            ],
+            'category_spending' => [
+                'title' => '🏷️ Category Spending',
+                'description' => 'Shows detailed spending breakdown by category with subcategories.',
+                'usage' => [
+                    '/category_spending - All categories',
+                    '/category_spending <category> - Specific category details'
+                ],
+                'examples' => [
+                    '/category_spending',
+                    '/category_spending food',
+                    '/categorias comida'
+                ]
+            ],
+            'stats' => [
+                'title' => '📈 Statistics',
+                'description' => 'Shows spending trends, insights, and records.',
+                'usage' => [
+                    '/stats - General statistics',
+                    '/stats <period> - Statistics for specific period'
+                ],
+                'examples' => [
+                    '/stats',
+                    '/stats week',
+                    '/estadisticas'
+                ]
+            ],
+            'export' => [
+                'title' => '📤 Export Expenses',
+                'description' => 'Export your expenses to Excel, PDF, or CSV format.',
+                'usage' => [
+                    '/export - Show export options',
+                    '/export <format> <period> - Direct export'
+                ],
+                'examples' => [
+                    '/export',
+                    '/export excel month',
+                    '/export csv today'
+                ]
+            ]
+        ];
+        
+        $commandKey = str_replace('/', '', strtolower($command));
+        
+        if (isset($helpTexts[$commandKey])) {
+            $help = $helpTexts[$commandKey];
+            
+            $message = "*{$help['title']}*\n\n";
+            $message .= "{$help['description']}\n\n";
+            
+            $message .= "*Usage:*\n";
+            foreach ($help['usage'] as $usage) {
+                $message .= "• `{$usage}`\n";
+            }
+            $message .= "\n";
+            
+            $message .= "*Examples:*\n";
+            foreach ($help['examples'] as $example) {
+                $message .= "• `{$example}`\n";
+            }
+            
+            $this->reply($message, ['parse_mode' => 'Markdown']);
+            
+        } else {
+            $this->reply("❓ Unknown command: /{$command}\n\nType /help to see available commands.");
+        }
+        
+        $this->logExecution('command_help', ['command' => $command]);
     }
 }
