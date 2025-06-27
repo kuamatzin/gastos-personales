@@ -13,7 +13,7 @@ class OpenAIServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(OpenAIService::class, function ($app) {
-            return new OpenAIService();
+            return new OpenAIService;
         });
     }
 
@@ -23,7 +23,7 @@ class OpenAIServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Ensure OpenAI configuration is available
-        if (!config('services.openai.key')) {
+        if (! config('services.openai.key')) {
             \Log::warning('OpenAI API key is not configured. Please set OPENAI_API_KEY in your .env file.');
         }
     }

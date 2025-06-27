@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class CategorySeeder extends Seeder
@@ -27,7 +26,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Coffee Shops', 'slug' => 'coffee_shops', 'icon' => '☕', 'keywords' => ['starbucks', 'cafe', 'coffee', 'café', 'punta del cielo', 'italian coffee', 'tim hortons']],
                     ['name' => 'Delivery', 'slug' => 'delivery', 'icon' => '🚚', 'keywords' => ['uber eats', 'rappi', 'didi food', 'delivery', 'entrega', 'a domicilio']],
                     ['name' => 'Alcohol', 'slug' => 'alcohol', 'icon' => '🍺', 'keywords' => ['cerveza', 'beer', 'vino', 'wine', 'licor', 'alcohol', 'bar', 'cantina']],
-                ]
+                ],
             ],
             [
                 'name' => 'Transportation',
@@ -42,7 +41,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Parking', 'slug' => 'parking', 'icon' => '🅿️', 'keywords' => ['parking', 'estacionamiento', 'valet', 'parquímetro']],
                     ['name' => 'Vehicle Maintenance', 'slug' => 'vehicle_maintenance', 'icon' => '🔧', 'keywords' => ['mecanico', 'mechanic', 'service', 'servicio', 'oil change', 'cambio de aceite', 'llantas', 'tires']],
                     ['name' => 'Tolls', 'slug' => 'tolls', 'icon' => '🛣️', 'keywords' => ['caseta', 'toll', 'peaje', 'autopista', 'highway']],
-                ]
+                ],
             ],
             [
                 'name' => 'Shopping',
@@ -57,7 +56,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Personal Care', 'slug' => 'personal_care', 'icon' => '🧴', 'keywords' => ['pharmacy', 'farmacia', 'shampoo', 'soap', 'farmacias del ahorro', 'farmacias guadalajara', 'benavides']],
                     ['name' => 'Gifts', 'slug' => 'gifts', 'icon' => '🎁', 'keywords' => ['regalo', 'gift', 'present', 'cumpleaños', 'birthday']],
                     ['name' => 'Online Shopping', 'slug' => 'online_shopping', 'icon' => '🖥️', 'keywords' => ['amazon', 'mercado libre', 'online', 'internet', 'ebay', 'aliexpress', 'shein']],
-                ]
+                ],
             ],
             [
                 'name' => 'Entertainment',
@@ -72,7 +71,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Games', 'slug' => 'games', 'icon' => '🎮', 'keywords' => ['videogame', 'videojuego', 'playstation', 'xbox', 'nintendo', 'steam', 'gaming']],
                     ['name' => 'Sports', 'slug' => 'sports', 'icon' => '⚽', 'keywords' => ['deporte', 'sport', 'futbol', 'football', 'gym', 'gimnasio', 'estadio']],
                     ['name' => 'Hobbies', 'slug' => 'hobbies', 'icon' => '🎨', 'keywords' => ['hobby', 'pasatiempo', 'arte', 'art', 'craft', 'manualidades']],
-                ]
+                ],
             ],
             [
                 'name' => 'Health & Wellness',
@@ -87,7 +86,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Dental', 'slug' => 'dental', 'icon' => '🦷', 'keywords' => ['dentista', 'dentist', 'dental', 'teeth', 'dientes', 'ortodoncista']],
                     ['name' => 'Mental Health', 'slug' => 'mental_health', 'icon' => '🧠', 'keywords' => ['psicologo', 'psychologist', 'terapia', 'therapy', 'psiquiatra', 'psychiatrist']],
                     ['name' => 'Supplements', 'slug' => 'supplements', 'icon' => '💊', 'keywords' => ['supplement', 'suplemento', 'vitamins', 'vitaminas', 'gnc', 'protein', 'proteina']],
-                ]
+                ],
             ],
             [
                 'name' => 'Bills & Utilities',
@@ -102,7 +101,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Internet', 'slug' => 'internet', 'icon' => '🌐', 'keywords' => ['internet', 'wifi', 'telmex', 'izzi', 'totalplay', 'megacable', 'axtel']],
                     ['name' => 'Phone', 'slug' => 'phone', 'icon' => '📞', 'keywords' => ['phone', 'telefono', 'telcel', 'movistar', 'at&t', 'cellular', 'celular']],
                     ['name' => 'Insurance', 'slug' => 'insurance', 'icon' => '🛡️', 'keywords' => ['seguro', 'insurance', 'gnp', 'axa', 'metlife', 'seguros']],
-                ]
+                ],
             ],
             [
                 'name' => 'Education',
@@ -116,7 +115,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Certifications', 'slug' => 'certifications', 'icon' => '🎓', 'keywords' => ['certificacion', 'certification', 'exam', 'examen', 'titulo', 'degree']],
                     ['name' => 'Conferences', 'slug' => 'conferences', 'icon' => '🎤', 'keywords' => ['conferencia', 'conference', 'seminario', 'seminar', 'workshop', 'taller']],
                     ['name' => 'Subscriptions', 'slug' => 'education_subscriptions', 'icon' => '💻', 'keywords' => ['subscription', 'suscripcion', 'membership', 'membresia', 'learning platform']],
-                ]
+                ],
             ],
             [
                 'name' => 'Services',
@@ -129,7 +128,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Home Services', 'slug' => 'home_services', 'icon' => '🏠', 'keywords' => ['plomero', 'plumber', 'electricista', 'electrician', 'limpieza', 'cleaning', 'jardinero']],
                     ['name' => 'Financial Services', 'slug' => 'financial_services', 'icon' => '💰', 'keywords' => ['banco', 'bank', 'financial', 'financiero', 'inversion', 'investment']],
                     ['name' => 'Subscription Services', 'slug' => 'subscription_services', 'icon' => '📱', 'keywords' => ['subscription', 'suscripcion', 'monthly', 'mensual', 'anual', 'yearly']],
-                ]
+                ],
             ],
             [
                 'name' => 'Travel',
@@ -142,7 +141,7 @@ class CategorySeeder extends Seeder
                     ['name' => 'Hotels', 'slug' => 'hotels', 'icon' => '🏨', 'keywords' => ['hotel', 'airbnb', 'booking', 'hospedaje', 'accommodation', 'alojamiento']],
                     ['name' => 'Vacation Expenses', 'slug' => 'vacation_expenses', 'icon' => '🏖️', 'keywords' => ['vacation', 'vacaciones', 'turismo', 'tourism', 'excursion', 'tour']],
                     ['name' => 'Travel Insurance', 'slug' => 'travel_insurance', 'icon' => '🛡️', 'keywords' => ['travel insurance', 'seguro de viaje', 'seguro viajero']],
-                ]
+                ],
             ],
             [
                 'name' => 'Other',
@@ -153,8 +152,8 @@ class CategorySeeder extends Seeder
                 'children' => [
                     ['name' => 'Miscellaneous', 'slug' => 'miscellaneous', 'icon' => '🔸', 'keywords' => ['misc', 'miscellaneous', 'varios', 'other', 'otro']],
                     ['name' => 'Uncategorized', 'slug' => 'uncategorized', 'icon' => '❓', 'keywords' => ['uncategorized', 'sin categoria', 'unknown', 'desconocido']],
-                ]
-            ]
+                ],
+            ],
         ];
 
         foreach ($categories as $categoryData) {

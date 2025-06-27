@@ -35,30 +35,31 @@ class ProcessExpenseText extends BaseExpenseProcessor
         // Handle special commands
         if ($this->text === 'delete_message') {
             $telegramService->deleteMessage($this->userId, $this->messageId);
+
             return;
         }
-        
+
         $this->logStart('text', ['text' => $this->text]);
-        
+
         try {
             $user = $this->getUser();
-            
+
             // Step 1: Extract expense data using OpenAI
             $expenseData = $openAIService->extractExpenseData($this->text);
-            
+
             // Step 2: Infer category if not already set
-            if (!isset($expenseData['category_id'])) {
+            if (! isset($expenseData['category_id'])) {
                 $categoryInference = $categoryService->inferCategory(
                     $user,
                     $expenseData['description'],
                     $expenseData['amount']
                 );
-                
+
                 $expenseData['category_id'] = $categoryInference['category_id'];
                 $expenseData['category_confidence'] = $categoryInference['confidence'];
                 $expenseData['inference_method'] = $categoryInference['method'];
             }
-            
+
             // Step 3: Create pending expense record
             $expense = DB::transaction(function () use ($user, $expenseData) {
                 return Expense::create([
@@ -77,27 +78,28 @@ class ProcessExpenseText extends BaseExpenseProcessor
                     'merchant_name' => $expenseData['merchant_name'] ?? null,
                 ]);
             });
-            
+
             // Step 4: Store context for confirmation handling
             $this->storeContext([
                 'expense_id' => $expense->id,
                 'expense_data' => $expenseData,
                 'original_text' => $this->text,
             ]);
-            
+
             // Step 5: Send confirmation message with category
             $telegramService->sendExpenseConfirmationWithCategory(
                 $this->userId,
-                array_merge($expenseData, ['expense_id' => $expense->id])
+                array_merge($expenseData, ['expense_id' => $expense->id]),
+                $user->language ?? 'es'
             );
-            
+
             $this->logComplete('text', [
                 'expense_id' => $expense->id,
                 'category_id' => $expense->category_id,
                 'amount' => $expense->amount,
                 'inference_method' => $expenseData['inference_method'] ?? 'unknown',
             ]);
-            
+
         } catch (\Exception $e) {
             // Log the error
             \Log::error('Failed to process text expense', [
@@ -106,7 +108,7 @@ class ProcessExpenseText extends BaseExpenseProcessor
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Re-throw to trigger retry mechanism
             throw $e;
         }

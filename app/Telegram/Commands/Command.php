@@ -2,36 +2,37 @@
 
 namespace App\Telegram\Commands;
 
-use App\Services\TelegramService;
 use App\Models\User;
+use App\Services\TelegramService;
 use Illuminate\Support\Facades\Log;
 
 abstract class Command
 {
     protected TelegramService $telegram;
+
     protected User $user;
-    
+
     /**
      * Command name for logging
      */
     protected string $name = 'command';
-    
+
     /**
      * Whether command requires authentication
      */
     protected bool $requiresAuth = true;
-    
+
     public function __construct(TelegramService $telegram, User $user)
     {
         $this->telegram = $telegram;
         $this->user = $user;
     }
-    
+
     /**
      * Handle the command
      */
     abstract public function handle(array $message, string $params = ''): void;
-    
+
     /**
      * Send a reply to the user
      */
@@ -43,7 +44,15 @@ abstract class Command
             $options
         );
     }
-    
+
+    /**
+     * Translate a message key with the user's language
+     */
+    protected function trans(string $key, array $replace = [], ?string $locale = null): string
+    {
+        return trans($key, $replace, $locale ?? $this->user->language ?? 'es');
+    }
+
     /**
      * Send a reply with safe Markdown parsing
      */
@@ -54,14 +63,14 @@ abstract class Command
             $this->reply($text, $options);
         } catch (\Exception $e) {
             $this->logError('Markdown parsing failed, sending plain text', ['error' => $e->getMessage()]);
-            
+
             // Send without markdown
             $plainText = str_replace(['*', '`', '_'], '', $text);
             unset($options['parse_mode']);
             $this->reply($plainText, $options);
         }
     }
-    
+
     /**
      * Escape special Markdown characters
      */
@@ -69,31 +78,31 @@ abstract class Command
     {
         return str_replace(['_', '*', '`', '[', ']'], ['\_', '\*', '\`', '\[', '\]'], $text);
     }
-    
+
     /**
      * Send a reply with inline keyboard
      */
     protected function replyWithKeyboard(string $text, array $keyboard, array $options = []): void
     {
         $options['reply_markup'] = [
-            'inline_keyboard' => $keyboard
+            'inline_keyboard' => $keyboard,
         ];
-        
+
         $this->reply($text, $options);
     }
-    
+
     /**
      * Send a reply with inline keyboard and safe Markdown parsing
      */
     protected function replyWithKeyboardMarkdown(string $text, array $keyboard, array $options = []): void
     {
         $options['reply_markup'] = [
-            'inline_keyboard' => $keyboard
+            'inline_keyboard' => $keyboard,
         ];
-        
+
         $this->replyWithMarkdown($text, $options);
     }
-    
+
     /**
      * Send a reply with custom keyboard
      */
@@ -102,12 +111,12 @@ abstract class Command
         $options['reply_markup'] = [
             'keyboard' => $keyboard,
             'resize_keyboard' => true,
-            'one_time_keyboard' => $options['one_time'] ?? false
+            'one_time_keyboard' => $options['one_time'] ?? false,
         ];
-        
+
         $this->reply($text, $options);
     }
-    
+
     /**
      * Remove custom keyboard
      */
@@ -115,11 +124,11 @@ abstract class Command
     {
         $this->reply($text, [
             'reply_markup' => [
-                'remove_keyboard' => true
-            ]
+                'remove_keyboard' => true,
+            ],
         ]);
     }
-    
+
     /**
      * Send typing action
      */
@@ -127,7 +136,7 @@ abstract class Command
     {
         $this->telegram->sendChatAction($this->user->telegram_id, 'typing');
     }
-    
+
     /**
      * Log command execution
      */
@@ -135,10 +144,10 @@ abstract class Command
     {
         Log::info("Command {$this->name} - {$action}", array_merge([
             'user_id' => $this->user->id,
-            'telegram_id' => $this->user->telegram_id
+            'telegram_id' => $this->user->telegram_id,
         ], $context));
     }
-    
+
     /**
      * Log command error
      */
@@ -147,10 +156,10 @@ abstract class Command
         Log::error("Command {$this->name} error", array_merge([
             'user_id' => $this->user->id,
             'telegram_id' => $this->user->telegram_id,
-            'error' => $error
+            'error' => $error,
         ], $context));
     }
-    
+
     /**
      * Parse date from parameters
      */
@@ -159,7 +168,7 @@ abstract class Command
         if (empty($params)) {
             return null;
         }
-        
+
         try {
             // Try various date formats
             $formats = [
@@ -169,7 +178,7 @@ abstract class Command
                 'd/m/y',
                 'd-m-y',
             ];
-            
+
             foreach ($formats as $format) {
                 try {
                     return \Carbon\Carbon::createFromFormat($format, $params);
@@ -177,15 +186,15 @@ abstract class Command
                     continue;
                 }
             }
-            
+
             // Try natural language parsing
             return \Carbon\Carbon::parse($params);
-            
+
         } catch (\Exception $e) {
             return null;
         }
     }
-    
+
     /**
      * Parse month from parameters
      */
@@ -194,9 +203,9 @@ abstract class Command
         if (empty($params)) {
             return \Carbon\Carbon::now()->startOfMonth();
         }
-        
+
         $params = strtolower(trim($params));
-        
+
         // Month names in Spanish
         $spanishMonths = [
             'enero' => 'january',
@@ -210,29 +219,30 @@ abstract class Command
             'septiembre' => 'september',
             'octubre' => 'october',
             'noviembre' => 'november',
-            'diciembre' => 'december'
+            'diciembre' => 'december',
         ];
-        
+
         // Replace Spanish month names
         foreach ($spanishMonths as $spanish => $english) {
             $params = str_replace($spanish, $english, $params);
         }
-        
+
         try {
             // Try parsing as month name
             if (in_array($params, array_values($spanishMonths))) {
                 return \Carbon\Carbon::parse($params)->startOfMonth();
             }
-            
+
             // Try parsing as date
             $date = $this->parseDate($params);
+
             return $date ? $date->startOfMonth() : null;
-            
+
         } catch (\Exception $e) {
             return null;
         }
     }
-    
+
     /**
      * Get emoji for category
      */
@@ -261,33 +271,34 @@ abstract class Command
             'travel' => '✈️',
             'viajes' => '✈️',
         ];
-        
+
         $key = strtolower($category);
+
         return $emojis[$key] ?? '📌';
     }
-    
+
     /**
      * Format currency amount
      */
     protected function formatMoney(float $amount, string $currency = 'MXN'): string
     {
-        return '$' . number_format($amount, 2) . ' ' . $currency;
+        return '$'.number_format($amount, 2).' '.$currency;
     }
-    
+
     /**
      * Format percentage
      */
     protected function formatPercentage(float $value): string
     {
         $formatted = number_format($value, 1);
-        
+
         if ($value > 0) {
-            return '+' . $formatted . '%';
+            return '+'.$formatted.'%';
         }
-        
-        return $formatted . '%';
+
+        return $formatted.'%';
     }
-    
+
     /**
      * Check if user has expenses
      */
@@ -295,20 +306,20 @@ abstract class Command
     {
         return $this->user->expenses()->confirmed()->exists();
     }
-    
+
     /**
      * Send "no expenses" message
      */
     protected function sendNoExpensesMessage(string $period = ''): void
     {
         $message = "📊 You don't have any expenses recorded";
-        
-        if (!empty($period)) {
+
+        if (! empty($period)) {
             $message .= " for {$period}";
         }
-        
+
         $message .= ".\n\nStart by sending me a photo of a receipt, a voice note, or a text message with your expense!";
-        
+
         $this->reply($message);
     }
 }

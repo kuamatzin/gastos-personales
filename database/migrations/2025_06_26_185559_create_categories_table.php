@@ -22,7 +22,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);
             $table->timestamps();
-            
+
             $table->index(['parent_id', 'is_active']);
         });
     }

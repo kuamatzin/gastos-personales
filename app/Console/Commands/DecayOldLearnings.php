@@ -27,11 +27,11 @@ class DecayOldLearnings extends Command
     public function handle(CategoryLearningService $learningService)
     {
         $days = $this->option('days');
-        
+
         $this->info("Decaying learning entries older than {$days} days...");
-        
+
         $learningService->decayOldLearnings($days);
-        
-        $this->info("✅ Learning decay completed!");
+
+        $this->info('✅ Learning decay completed!');
     }
 }

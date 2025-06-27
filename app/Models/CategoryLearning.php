@@ -15,12 +15,12 @@ class CategoryLearning extends Model
         'category_id',
         'confidence_weight',
         'usage_count',
-        'last_used_at'
+        'last_used_at',
     ];
 
     protected $casts = [
         'last_used_at' => 'datetime',
-        'confidence_weight' => 'float'
+        'confidence_weight' => 'float',
     ];
 
     public function user(): BelongsTo

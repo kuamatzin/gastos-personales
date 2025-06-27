@@ -35,16 +35,19 @@ class MonitorExpenseJobs extends Command
     {
         if ($this->option('stats')) {
             $this->showStatistics();
+
             return;
         }
 
         if ($this->option('failed')) {
             $this->showFailedJobs();
+
             return;
         }
 
         if ($this->option('pending')) {
             $this->showPendingExpenses();
+
             return;
         }
 
@@ -68,7 +71,7 @@ class MonitorExpenseJobs extends Command
         $failedCount = DB::table('failed_jobs')
             ->where('payload', 'like', '%ProcessExpense%')
             ->count();
-        
+
         if ($failedCount > 0) {
             $this->warn("❌ Failed Jobs: {$failedCount}");
         }
@@ -77,6 +80,7 @@ class MonitorExpenseJobs extends Command
         $statusCounts = Expense::select('status', DB::raw('count(*) as count'))
             ->when($this->option('user'), function ($query) {
                 $user = User::where('telegram_id', $this->option('user'))->first();
+
                 return $query->where('user_id', $user?->id);
             })
             ->groupBy('status')
@@ -86,7 +90,7 @@ class MonitorExpenseJobs extends Command
 
         $this->newLine();
         $this->info('📈 Expense Status Breakdown:');
-        
+
         $statuses = [
             'pending' => '⏳ Pending',
             'confirmed' => '✅ Confirmed',
@@ -103,10 +107,11 @@ class MonitorExpenseJobs extends Command
         // Recent activity
         $this->newLine();
         $this->info('🕐 Recent Activity (Last 10):');
-        
+
         $recentExpenses = Expense::with(['user', 'category'])
             ->when($this->option('user'), function ($query) {
                 $user = User::where('telegram_id', $this->option('user'))->first();
+
                 return $query->where('user_id', $user?->id);
             })
             ->latest()
@@ -119,8 +124,8 @@ class MonitorExpenseJobs extends Command
                 return [
                     $expense->id,
                     $expense->user->name,
-                    '$' . number_format($expense->amount, 2) . ' ' . $expense->currency,
-                    substr($expense->description, 0, 30) . '...',
+                    '$'.number_format($expense->amount, 2).' '.$expense->currency,
+                    substr($expense->description, 0, 30).'...',
                     $this->formatStatus($expense->status),
                     $expense->created_at->diffForHumans(),
                 ];
@@ -140,6 +145,7 @@ class MonitorExpenseJobs extends Command
         $stats = DB::table('expenses')
             ->when($this->option('user'), function ($query) {
                 $user = User::where('telegram_id', $this->option('user'))->first();
+
                 return $query->where('user_id', $user?->id);
             })
             ->selectRaw('
@@ -159,18 +165,19 @@ class MonitorExpenseJobs extends Command
                 ['Confirmed', number_format($stats->confirmed_count)],
                 ['Auto-confirmed', number_format($stats->auto_confirmed_count)],
                 ['Rejected', number_format($stats->rejected_count)],
-                ['Avg. Confidence', round($stats->avg_confidence * 100, 1) . '%'],
-                ['Avg. Category Confidence', round($stats->avg_category_confidence * 100, 1) . '%'],
+                ['Avg. Confidence', round($stats->avg_confidence * 100, 1).'%'],
+                ['Avg. Category Confidence', round($stats->avg_category_confidence * 100, 1).'%'],
             ]
         );
 
         // Processing by input type
         $this->newLine();
         $this->info('📱 By Input Type:');
-        
+
         $byType = DB::table('expenses')
             ->when($this->option('user'), function ($query) {
                 $user = User::where('telegram_id', $this->option('user'))->first();
+
                 return $query->where('user_id', $user?->id);
             })
             ->select('input_type', DB::raw('count(*) as count'))
@@ -190,11 +197,12 @@ class MonitorExpenseJobs extends Command
         // Top categories
         $this->newLine();
         $this->info('🏷️ Top Categories:');
-        
+
         $topCategories = DB::table('expenses')
             ->join('categories', 'expenses.category_id', '=', 'categories.id')
             ->when($this->option('user'), function ($query) {
                 $user = User::where('telegram_id', $this->option('user'))->first();
+
                 return $query->where('expenses.user_id', $user?->id);
             })
             ->select('categories.name', 'categories.icon', DB::raw('count(*) as count'))
@@ -207,7 +215,7 @@ class MonitorExpenseJobs extends Command
             ['Category', 'Count'],
             $topCategories->map(function ($row) {
                 return [
-                    ($row->icon ?? '📋') . ' ' . $row->name,
+                    ($row->icon ?? '📋').' '.$row->name,
                     number_format($row->count),
                 ];
             })
@@ -230,6 +238,7 @@ class MonitorExpenseJobs extends Command
 
         if ($failedJobs->isEmpty()) {
             $this->info('No failed expense processing jobs found! 🎉');
+
             return;
         }
 
@@ -238,8 +247,8 @@ class MonitorExpenseJobs extends Command
             $failedJobs->map(function ($job) {
                 $payload = json_decode($job->payload, true);
                 $jobClass = basename($payload['displayName'] ?? 'Unknown');
-                $exception = substr($job->exception, 0, 50) . '...';
-                
+                $exception = substr($job->exception, 0, 50).'...';
+
                 return [
                     $job->id,
                     $jobClass,
@@ -273,23 +282,24 @@ class MonitorExpenseJobs extends Command
 
         if ($pendingExpenses->isEmpty()) {
             $this->info('No pending expenses found!');
+
             return;
         }
 
         $this->table(
             ['ID', 'User', 'Amount', 'Description', 'Category', 'Confidence', 'Age'],
             $pendingExpenses->map(function ($expense) {
-                $categoryName = $expense->category 
-                    ? ($expense->category->icon ?? '📋') . ' ' . $expense->category->name
+                $categoryName = $expense->category
+                    ? ($expense->category->icon ?? '📋').' '.$expense->category->name
                     : 'None';
-                
+
                 return [
                     $expense->id,
                     $expense->user->name,
-                    '$' . number_format($expense->amount, 2),
-                    substr($expense->description, 0, 25) . '...',
+                    '$'.number_format($expense->amount, 2),
+                    substr($expense->description, 0, 25).'...',
                     $categoryName,
-                    round($expense->category_confidence * 100) . '%',
+                    round($expense->category_confidence * 100).'%',
                     $expense->created_at->diffForHumans(),
                 ];
             })
@@ -304,7 +314,7 @@ class MonitorExpenseJobs extends Command
      */
     protected function formatStatus(string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'pending' => '⏳ Pending',
             'confirmed' => '✅ Confirmed',
             'auto_confirmed' => '🤖 Auto-confirmed',

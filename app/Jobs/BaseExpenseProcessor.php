@@ -9,20 +9,25 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 abstract class BaseExpenseProcessor implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $timeout = 120;
+
     public $backoff = [30, 60, 120]; // Exponential backoff
 
     protected string $userId;
+
     protected int $messageId;
+
     protected ?User $user = null;
+
     protected ?TelegramService $telegram = null;
 
     /**
@@ -38,14 +43,14 @@ abstract class BaseExpenseProcessor implements ShouldQueue
      */
     protected function getUser(): User
     {
-        if (!$this->user) {
+        if (! $this->user) {
             $this->user = User::where('telegram_id', $this->userId)->first();
-            
-            if (!$this->user) {
+
+            if (! $this->user) {
                 throw new \Exception("User not found: {$this->userId}");
             }
         }
-        
+
         return $this->user;
     }
 
@@ -54,10 +59,10 @@ abstract class BaseExpenseProcessor implements ShouldQueue
      */
     protected function getTelegram(): TelegramService
     {
-        if (!$this->telegram) {
+        if (! $this->telegram) {
             $this->telegram = app(TelegramService::class);
         }
-        
+
         return $this->telegram;
     }
 
@@ -67,13 +72,13 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     protected function storeContext(array $data): void
     {
         $key = $this->getContextKey();
-        
+
         Cache::put($key, $data, now()->addHour()); // 1 hour TTL
-        
+
         Log::info('Stored expense context', [
             'key' => $key,
             'user_id' => $this->userId,
-            'message_id' => $this->messageId
+            'message_id' => $this->messageId,
         ]);
     }
 
@@ -83,6 +88,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     protected function getContext(): ?array
     {
         $key = $this->getContextKey();
+
         return Cache::get($key);
     }
 
@@ -115,7 +121,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Failed to send error message to user', [
                 'user_id' => $this->userId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -155,7 +161,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
                 return round(microtime(true) - $payload['pushedAt'], 2);
             }
         }
-        
+
         return 0;
     }
 
@@ -177,7 +183,7 @@ abstract class BaseExpenseProcessor implements ShouldQueue
 
         // Notify user of failure
         $this->sendErrorMessage(
-            "Sorry, I couldn't process your expense. " . $this->getFailureMessage()
+            "Sorry, I couldn't process your expense. ".$this->getFailureMessage()
         );
     }
 
@@ -192,30 +198,30 @@ abstract class BaseExpenseProcessor implements ShouldQueue
     protected function downloadTelegramFile(string $fileId): ?string
     {
         $telegram = $this->getTelegram();
-        
+
         // Get file info
         $fileInfo = $telegram->getFile($fileId);
-        if (!$fileInfo) {
+        if (! $fileInfo) {
             throw new \Exception('Failed to get file info from Telegram');
         }
-        
+
         // Download file content
         $fileContent = $telegram->downloadFile($fileInfo['file_path']);
-        if (!$fileContent) {
+        if (! $fileContent) {
             throw new \Exception('Failed to download file from Telegram');
         }
-        
+
         // Save to temporary file
         $tempDir = storage_path('app/telegram');
-        if (!file_exists($tempDir)) {
+        if (! file_exists($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
-        
+
         $extension = pathinfo($fileInfo['file_path'], PATHINFO_EXTENSION);
-        $tempFile = $tempDir . '/' . uniqid('telegram_') . '.' . $extension;
-        
+        $tempFile = $tempDir.'/'.uniqid('telegram_').'.'.$extension;
+
         file_put_contents($tempFile, $fileContent);
-        
+
         return $tempFile;
     }
 

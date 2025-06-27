@@ -16,7 +16,7 @@ class CategoryServiceProvider extends ServiceProvider
     {
         // Register CategoryLearningService as singleton
         $this->app->singleton(CategoryLearningService::class, function ($app) {
-            return new CategoryLearningService();
+            return new CategoryLearningService;
         });
 
         // Register CategoryInferenceService as singleton

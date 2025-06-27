@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class TelegramService
 {
     private string $apiUrl;
+
     private string $token;
+
     private ?string $webhookSecret;
 
     public function __construct()
@@ -38,6 +40,7 @@ class TelegramService
     public function deleteWebhook(): array
     {
         $response = Http::post("{$this->apiUrl}/deleteWebhook");
+
         return $response->json();
     }
 
@@ -47,6 +50,7 @@ class TelegramService
     public function getWebhookInfo(): array
     {
         $response = Http::get("{$this->apiUrl}/getWebhookInfo");
+
         return $response->json();
     }
 
@@ -63,30 +67,30 @@ class TelegramService
 
         try {
             $response = Http::post("{$this->apiUrl}/sendMessage", $params);
-            
+
             $result = $response->json();
-            
-            if (!$response->successful()) {
+
+            if (! $response->successful()) {
                 Log::error('Telegram sendMessage failed', [
                     'status' => $response->status(),
                     'response' => $result,
                     'params' => $params,
                     'text_length' => strlen($text),
                 ]);
-                
+
                 // Throw exception so caller can handle it
                 throw new \Exception($result['description'] ?? 'Unknown Telegram error');
             }
 
             return $result;
-            
+
         } catch (\Exception $e) {
             Log::error('Telegram sendMessage exception', [
                 'error' => $e->getMessage(),
                 'chat_id' => $chatId,
-                'text_preview' => substr($text, 0, 100) . '...',
+                'text_preview' => substr($text, 0, 100).'...',
             ]);
-            
+
             throw $e;
         }
     }
@@ -97,7 +101,7 @@ class TelegramService
     public function sendMessageWithKeyboard(string $chatId, string $text, array $keyboard, array $options = []): array
     {
         $options['reply_markup'] = json_encode([
-            'inline_keyboard' => $keyboard
+            'inline_keyboard' => $keyboard,
         ]);
 
         return $this->sendMessage($chatId, $text, $options);
@@ -116,6 +120,7 @@ class TelegramService
         ], $options);
 
         $response = Http::post("{$this->apiUrl}/editMessageText", $params);
+
         return $response->json();
     }
 
@@ -142,42 +147,43 @@ class TelegramService
         ], $options);
 
         $response = Http::post("{$this->apiUrl}/answerCallbackQuery", $params);
+
         return $response->json();
     }
 
     /**
      * Send expense confirmation with category
      */
-    public function sendExpenseConfirmationWithCategory(string $chatId, array $expenseData): array
+    public function sendExpenseConfirmationWithCategory(string $chatId, array $expenseData, string $userLanguage = 'es'): array
     {
         $category = \App\Models\Category::find($expenseData['category_id']);
         $confidence = round($expenseData['category_confidence'] * 100);
 
         $message = "💰 *Expense detected!*\n\n";
-        $message .= "💵 *Amount:* $" . number_format($expenseData['amount'], 2) . " " . $expenseData['currency'] . "\n";
-        $message .= "📝 *Description:* " . $expenseData['description'] . "\n";
-        $message .= "📅 *Date:* " . $expenseData['date'] . "\n";
-        $message .= "🏷️ *Category:* " . ($category->icon ?? '📋') . " " . $category->name;
+        $message .= '💵 *Amount:* $'.number_format($expenseData['amount'], 2).' '.$expenseData['currency']."\n";
+        $message .= '📝 *Description:* '.$expenseData['description']."\n";
+        $message .= '📅 *Date:* '.$expenseData['date']."\n";
+        $message .= '🏷️ *Category:* '.($category->icon ?? '📋').' '.$category->name;
 
         if ($expenseData['category_confidence'] < 0.9) {
             $message .= " *(Confidence: {$confidence}%)*";
         }
 
         if (isset($expenseData['merchant_name'])) {
-            $message .= "\n🏪 *Merchant:* " . $expenseData['merchant_name'];
+            $message .= "\n🏪 *Merchant:* ".$expenseData['merchant_name'];
         }
 
         $message .= "\n\nIs this correct?";
 
         $keyboard = [
             [
-                ['text' => '✅ Confirm', 'callback_data' => 'confirm_expense_' . $expenseData['expense_id']],
-                ['text' => '✏️ Edit Category', 'callback_data' => 'edit_category_' . $expenseData['expense_id']]
+                ['text' => trans('telegram.button_confirm', [], $userLanguage), 'callback_data' => 'confirm_expense_'.$expenseData['expense_id']],
+                ['text' => trans('telegram.button_edit_category', [], $userLanguage), 'callback_data' => 'edit_category_'.$expenseData['expense_id']],
             ],
             [
-                ['text' => '📝 Edit Description', 'callback_data' => 'edit_description_' . $expenseData['expense_id']],
-                ['text' => '❌ Cancel', 'callback_data' => 'cancel_expense_' . $expenseData['expense_id']]
-            ]
+                ['text' => trans('telegram.button_edit_description', [], $userLanguage), 'callback_data' => 'edit_description_'.$expenseData['expense_id']],
+                ['text' => trans('telegram.button_cancel', [], $userLanguage), 'callback_data' => 'cancel_expense_'.$expenseData['expense_id']],
+            ],
         ];
 
         return $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
@@ -186,7 +192,7 @@ class TelegramService
     /**
      * Send category selection
      */
-    public function sendCategorySelection(string $chatId, ?int $currentCategoryId = null): array
+    public function sendCategorySelection(string $chatId, ?int $currentCategoryId = null, string $userLanguage = 'es'): array
     {
         $categories = \App\Models\Category::parents()->where('is_active', true)->get();
         $keyboard = [];
@@ -195,15 +201,15 @@ class TelegramService
             $row = [];
             foreach ($chunk as $category) {
                 $icon = $category->icon ?? '📋';
-                $text = $icon . ' ' . $category->name;
+                $text = $icon.' '.$category->name;
 
                 if ($category->id == $currentCategoryId) {
-                    $text = '✅ ' . $text;
+                    $text = '✅ '.$text;
                 }
 
                 $row[] = [
                     'text' => $text,
-                    'callback_data' => 'select_category_' . $category->id
+                    'callback_data' => 'select_category_'.$category->id,
                 ];
             }
             $keyboard[] = $row;
@@ -211,12 +217,12 @@ class TelegramService
 
         if ($currentCategoryId) {
             $keyboard[] = [
-                ['text' => '🔍 View Subcategories', 'callback_data' => 'show_subcategories_' . $currentCategoryId],
-                ['text' => '↩️ Back', 'callback_data' => 'back_to_expense']
+                ['text' => trans('telegram.button_view_subcategories', [], $userLanguage), 'callback_data' => 'show_subcategories_'.$currentCategoryId],
+                ['text' => trans('telegram.button_back', [], $userLanguage), 'callback_data' => 'back_to_expense'],
             ];
         }
 
-        return $this->sendMessageWithKeyboard($chatId, "🏷️ *Select a category:*", $keyboard);
+        return $this->sendMessageWithKeyboard($chatId, trans('telegram.button_select_category', [], $userLanguage), $keyboard);
     }
 
     /**
@@ -225,7 +231,7 @@ class TelegramService
     public function getFile(string $fileId): ?array
     {
         $response = Http::get("{$this->apiUrl}/getFile", [
-            'file_id' => $fileId
+            'file_id' => $fileId,
         ]);
 
         if ($response->successful()) {
@@ -252,7 +258,7 @@ class TelegramService
 
         return null;
     }
-    
+
     /**
      * Get bot token (for file downloads)
      */
@@ -268,7 +274,7 @@ class TelegramService
     {
         $response = Http::post("{$this->apiUrl}/sendChatAction", [
             'chat_id' => $chatId,
-            'action' => $action
+            'action' => $action,
         ]);
 
         return $response->json();

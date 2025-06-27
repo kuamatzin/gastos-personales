@@ -2,16 +2,16 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Expense;
-use App\Models\Category;
-use App\Services\GoogleSheetsService;
 use App\Jobs\SyncExpenseToSheets;
+use App\Models\Category;
+use App\Models\Expense;
+use App\Models\User;
+use App\Services\GoogleSheetsService;
+use Google\Service\Sheets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
-use Google\Service\Sheets;
+use Tests\TestCase;
 
 class GoogleSheetsIntegrationTest extends TestCase
 {
@@ -20,7 +20,7 @@ class GoogleSheetsIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock Google Sheets for testing
         config(['services.google_sheets.enabled' => true]);
     }
@@ -39,7 +39,7 @@ class GoogleSheetsIntegrationTest extends TestCase
             'currency' => 'MXN',
             'description' => 'Test expense',
             'expense_date' => now(),
-            'status' => 'confirmed'
+            'status' => 'confirmed',
         ]);
 
         Queue::assertPushed(SyncExpenseToSheets::class, function ($job) use ($expense) {
@@ -61,7 +61,7 @@ class GoogleSheetsIntegrationTest extends TestCase
             'currency' => 'MXN',
             'description' => 'Test expense',
             'expense_date' => now(),
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         Queue::assertNotPushed(SyncExpenseToSheets::class);
@@ -81,7 +81,7 @@ class GoogleSheetsIntegrationTest extends TestCase
             'currency' => 'MXN',
             'description' => 'Test expense',
             'expense_date' => now(),
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         Queue::assertNotPushed(SyncExpenseToSheets::class);
@@ -98,7 +98,7 @@ class GoogleSheetsIntegrationTest extends TestCase
         $parentCategory = Category::factory()->create(['name' => 'Food']);
         $category = Category::factory()->create([
             'name' => 'Restaurant',
-            'parent_id' => $parentCategory->id
+            'parent_id' => $parentCategory->id,
         ]);
 
         $user = User::factory()->create();
@@ -111,13 +111,13 @@ class GoogleSheetsIntegrationTest extends TestCase
             'expense_date' => now(),
             'status' => 'confirmed',
             'inference_method' => 'ai',
-            'category_confidence' => 0.85
+            'category_confidence' => 0.85,
         ]);
 
         // Mock the Google Sheets service
         $mockSheets = Mockery::mock(GoogleSheetsService::class)->makePartial();
         $mockSheets->shouldAllowMockingProtectedMethods();
-        
+
         // We'll just verify that the data would be formatted correctly
         $this->assertEquals('Food', $expense->category->parent->name);
         $this->assertEquals('Restaurant', $expense->category->name);
@@ -129,7 +129,7 @@ class GoogleSheetsIntegrationTest extends TestCase
     public function test_sync_job_respects_google_sheets_enabled_config()
     {
         config(['services.google_sheets.enabled' => false]);
-        
+
         Queue::fake();
 
         $user = User::factory()->create();
@@ -142,7 +142,7 @@ class GoogleSheetsIntegrationTest extends TestCase
             'currency' => 'MXN',
             'description' => 'Test expense',
             'expense_date' => now(),
-            'status' => 'confirmed'
+            'status' => 'confirmed',
         ]);
 
         // Even with sheets disabled, the job should still be dispatched
@@ -158,7 +158,7 @@ class GoogleSheetsIntegrationTest extends TestCase
         $expense = Expense::factory()->create([
             'user_id' => $user->id,
             'category_id' => $category->id,
-            'status' => 'confirmed'
+            'status' => 'confirmed',
         ]);
 
         $mockSheets = Mockery::mock(GoogleSheetsService::class);
@@ -167,11 +167,11 @@ class GoogleSheetsIntegrationTest extends TestCase
             ->andThrow(new \Exception('Quota exceeded for quota metric'));
 
         $job = new SyncExpenseToSheets($expense);
-        
+
         // The job should release itself when quota is exceeded
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Quota exceeded');
-        
+
         $job->handle($mockSheets);
     }
 
@@ -179,7 +179,7 @@ class GoogleSheetsIntegrationTest extends TestCase
     {
         $mockSheets = Mockery::mock(GoogleSheetsService::class);
         $mockSheets->shouldReceive('initialize')->once();
-        
+
         $this->app->instance(GoogleSheetsService::class, $mockSheets);
 
         $this->artisan('sheets:init')
@@ -195,7 +195,7 @@ class GoogleSheetsIntegrationTest extends TestCase
         Expense::factory()->count(5)->create([
             'user_id' => $user->id,
             'category_id' => $category->id,
-            'status' => 'confirmed'
+            'status' => 'confirmed',
         ]);
 
         $this->artisan('sheets:sync-historical --dry-run')

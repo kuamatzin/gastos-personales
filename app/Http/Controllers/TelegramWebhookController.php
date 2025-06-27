@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessExpenseText;
-use App\Models\User;
 use App\Models\Expense;
-use App\Services\TelegramService;
+use App\Models\User;
 use App\Services\CategoryLearningService;
+use App\Services\TelegramService;
 use App\Telegram\CommandRouter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 class TelegramWebhookController extends Controller
 {
     private TelegramService $telegram;
+
     private CommandRouter $commandRouter;
 
     public function __construct(TelegramService $telegram)
@@ -31,6 +32,7 @@ class TelegramWebhookController extends Controller
         // Verify webhook secret
         if ($request->header('X-Telegram-Bot-Api-Secret-Token') !== config('services.telegram.webhook_secret')) {
             Log::warning('Invalid Telegram webhook secret');
+
             return response('Unauthorized', 401);
         }
 
@@ -56,8 +58,9 @@ class TelegramWebhookController extends Controller
         $user = $this->registerOrUpdateUser($message['from']);
 
         // Check if user is active
-        if (!$user->is_active) {
-            $this->telegram->sendMessage($chatId, "⚠️ Your account is currently inactive. Please contact support.");
+        if (! $user->is_active) {
+            $this->telegram->sendMessage($chatId, '⚠️ Your account is currently inactive. Please contact support.');
+
             return;
         }
 
@@ -85,10 +88,10 @@ class TelegramWebhookController extends Controller
     {
         // Use the CommandRouter to handle all commands
         $handled = $this->commandRouter->route($message, $user);
-        
-        if (!$handled) {
+
+        if (! $handled) {
             // Command not found
-            $this->telegram->sendMessage($chatId, "❓ Unknown command. Type /help for available commands.");
+            $this->telegram->sendMessage($chatId, '❓ Unknown command. Type /help for available commands.');
         }
     }
 
@@ -121,7 +124,7 @@ class TelegramWebhookController extends Controller
             $this->selectCategory($chatId, $messageId, $categoryId);
         } elseif (str_starts_with($data, 'edit_category_')) {
             $expenseId = str_replace('edit_category_', '', $data);
-            $this->editCategory($chatId, $messageId, $expenseId);
+            $this->editCategory($chatId, $messageId, $expenseId, $userId);
         } elseif ($data === 'edit_category') {
             // Handle old format without expense ID
             $this->editCategoryForLatestPendingExpense($chatId, $messageId, $userId);
@@ -131,6 +134,9 @@ class TelegramWebhookController extends Controller
         } elseif ($data === 'edit_description') {
             // Handle old format without expense ID
             $this->editDescriptionForLatestPendingExpense($chatId, $messageId, $userId);
+        } elseif (strpos($data, 'language_') === 0) {
+            // Handle language selection
+            $this->handleLanguageSelection($chatId, $messageId, $userId, $data);
         }
         // Add more callback handlers as needed
     }
@@ -143,9 +149,9 @@ class TelegramWebhookController extends Controller
         $user->telegram_first_name = $telegramUser['first_name'] ?? null;
         $user->telegram_last_name = $telegramUser['last_name'] ?? null;
 
-        if (!$user->exists) {
-            $user->name = trim(($telegramUser['first_name'] ?? '') . ' ' . ($telegramUser['last_name'] ?? ''));
-            $user->email = 'telegram_' . $telegramUser['id'] . '@expensebot.local';
+        if (! $user->exists) {
+            $user->name = trim(($telegramUser['first_name'] ?? '').' '.($telegramUser['last_name'] ?? ''));
+            $user->email = 'telegram_'.$telegramUser['id'].'@expensebot.local';
             $user->password = bcrypt(str()->random(32));
             $user->is_active = true;
         }
@@ -158,9 +164,13 @@ class TelegramWebhookController extends Controller
     private function processTextExpense(string $chatId, string $userId, string $text, int $messageId)
     {
         Log::info('Processing text expense', ['chatId' => $chatId, 'userId' => $userId, 'text' => $text]);
-        
+
+        // Get user language
+        $user = \App\Models\User::where('telegram_id', $userId)->first();
+        $language = $user ? $user->language : 'es';
+
         // Send processing message
-        $processingMessage = $this->telegram->sendMessage($chatId, "🔄 Processing your expense...");
+        $processingMessage = $this->telegram->sendMessage($chatId, trans('telegram.processing_text', [], $language));
         Log::info('Processing message sent', ['result' => $processingMessage]);
 
         // Queue the job
@@ -181,11 +191,15 @@ class TelegramWebhookController extends Controller
     private function processVoiceExpense(string $chatId, string $userId, array $voice, int $messageId)
     {
         Log::info('Processing voice expense', ['chatId' => $chatId, 'userId' => $userId, 'voice' => $voice]);
-        
+
         $fileId = $voice['file_id'];
-        
+
+        // Get user language
+        $user = \App\Models\User::where('telegram_id', $userId)->first();
+        $language = $user ? $user->language : 'es';
+
         // Send processing message
-        $processingMessage = $this->telegram->sendMessage($chatId, "🎤 Processing voice message...");
+        $processingMessage = $this->telegram->sendMessage($chatId, trans('telegram.processing_voice', [], $language));
         Log::info('Processing message sent', ['result' => $processingMessage]);
 
         // Queue the job
@@ -195,7 +209,7 @@ class TelegramWebhookController extends Controller
             Log::info('Voice processing job dispatched successfully', ['file_id' => $fileId]);
         } catch (\Exception $e) {
             Log::error('Failed to dispatch voice processing job', ['error' => $e->getMessage()]);
-            $this->telegram->sendMessage($chatId, "❌ Failed to process voice message. Please try again.");
+            $this->telegram->sendMessage($chatId, '❌ Failed to process voice message. Please try again.');
         }
 
         // Delete processing message after a delay
@@ -207,13 +221,17 @@ class TelegramWebhookController extends Controller
     private function processPhotoExpense(string $chatId, string $userId, array $photos, int $messageId)
     {
         Log::info('Processing photo expense', ['chatId' => $chatId, 'userId' => $userId, 'photos' => count($photos)]);
-        
+
         // Get the largest photo (Telegram sends multiple sizes)
         $largestPhoto = end($photos);
         $fileId = $largestPhoto['file_id'];
-        
+
+        // Get user language
+        $user = \App\Models\User::where('telegram_id', $userId)->first();
+        $language = $user ? $user->language : 'es';
+
         // Send processing message
-        $processingMessage = $this->telegram->sendMessage($chatId, "📷 Processing receipt image...");
+        $processingMessage = $this->telegram->sendMessage($chatId, trans('telegram.processing_image', [], $language));
         Log::info('Processing message sent', ['result' => $processingMessage]);
 
         // Queue the job
@@ -223,7 +241,7 @@ class TelegramWebhookController extends Controller
             Log::info('Photo processing job dispatched successfully', ['file_id' => $fileId]);
         } catch (\Exception $e) {
             Log::error('Failed to dispatch photo processing job', ['error' => $e->getMessage()]);
-            $this->telegram->sendMessage($chatId, "❌ Failed to process image. Please try again.");
+            $this->telegram->sendMessage($chatId, '❌ Failed to process image. Please try again.');
         }
 
         // Delete processing message after a delay
@@ -237,7 +255,7 @@ class TelegramWebhookController extends Controller
         try {
             // Find the expense
             $expense = \App\Models\Expense::where('id', $expenseId)
-                ->where('user_id', function($query) use ($userId) {
+                ->where('user_id', function ($query) use ($userId) {
                     $query->select('id')
                         ->from('users')
                         ->where('telegram_id', $userId)
@@ -246,8 +264,9 @@ class TelegramWebhookController extends Controller
                 ->where('status', 'pending')
                 ->first();
 
-            if (!$expense) {
-                $this->telegram->editMessage($chatId, $messageId, "❌ Expense not found or already processed.");
+            if (! $expense) {
+                $this->telegram->editMessage($chatId, $messageId, '❌ Expense not found or already processed.');
+
                 return;
             }
 
@@ -257,7 +276,7 @@ class TelegramWebhookController extends Controller
 
             // If user selected a different category than suggested, learn from it
             if ($expense->category_id != $expense->suggested_category_id) {
-                $learningService = new \App\Services\CategoryLearningService();
+                $learningService = new \App\Services\CategoryLearningService;
                 $learningService->learn(
                     $expense->user_id,
                     $expense->description,
@@ -266,25 +285,25 @@ class TelegramWebhookController extends Controller
                 );
             }
 
-            $this->telegram->editMessage($chatId, $messageId, 
-                "✅ Expense confirmed and saved!\n\n" .
-                "💰 Amount: $" . number_format($expense->amount, 2) . "\n" .
-                "🏷️ Category: " . $expense->category->name
+            $this->telegram->editMessage($chatId, $messageId,
+                "✅ Expense confirmed and saved!\n\n".
+                '💰 Amount: $'.number_format($expense->amount, 2)."\n".
+                '🏷️ Category: '.$expense->category->name
             );
 
             Log::info('Expense confirmed', [
                 'expense_id' => $expense->id,
                 'user_id' => $expense->user_id,
-                'amount' => $expense->amount
+                'amount' => $expense->amount,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to confirm expense', [
                 'expense_id' => $expenseId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
-            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to confirm expense. Please try again.");
+
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to confirm expense. Please try again.');
         }
     }
 
@@ -293,7 +312,7 @@ class TelegramWebhookController extends Controller
         try {
             // Find and delete the expense
             $expense = \App\Models\Expense::where('id', $expenseId)
-                ->where('user_id', function($query) use ($userId) {
+                ->where('user_id', function ($query) use ($userId) {
                     $query->select('id')
                         ->from('users')
                         ->where('telegram_id', $userId)
@@ -304,36 +323,38 @@ class TelegramWebhookController extends Controller
 
             if ($expense) {
                 $expense->delete();
-                $this->telegram->editMessage($chatId, $messageId, "❌ Expense cancelled.");
+                $this->telegram->editMessage($chatId, $messageId, '❌ Expense cancelled.');
             } else {
-                $this->telegram->editMessage($chatId, $messageId, "❌ Expense not found or already processed.");
+                $this->telegram->editMessage($chatId, $messageId, '❌ Expense not found or already processed.');
             }
 
         } catch (\Exception $e) {
             Log::error('Failed to cancel expense', [
                 'expense_id' => $expenseId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
-            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to cancel expense.");
+
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to cancel expense.');
         }
     }
 
     private function selectCategory(string $chatId, int $messageId, string $categoryId)
     {
         // TODO: Implement category selection
-        $this->telegram->editMessage($chatId, $messageId, "✅ Category updated!");
+        $this->telegram->editMessage($chatId, $messageId, '✅ Category updated!');
     }
 
-    private function editCategory(string $chatId, int $messageId, string $expenseId)
+    private function editCategory(string $chatId, int $messageId, string $expenseId, string $userId)
     {
-        $this->telegram->sendCategorySelection($chatId);
+        $user = \App\Models\User::where('telegram_id', $userId)->first();
+        $language = $user ? $user->language : 'es';
+        $this->telegram->sendCategorySelection($chatId, null, $language);
     }
 
     private function editDescription(string $chatId, int $messageId, string $expenseId)
     {
         // TODO: Implement description editing
-        $this->telegram->editMessage($chatId, $messageId, "📝 To edit description, please cancel and create a new expense.");
+        $this->telegram->editMessage($chatId, $messageId, '📝 To edit description, please cancel and create a new expense.');
     }
 
     /**
@@ -343,18 +364,19 @@ class TelegramWebhookController extends Controller
     {
         try {
             // Find the latest pending expense for this user
-            $expense = Expense::where('user_id', function($query) use ($userId) {
-                    $query->select('id')
-                        ->from('users')
-                        ->where('telegram_id', $userId)
-                        ->limit(1);
-                })
+            $expense = Expense::where('user_id', function ($query) use ($userId) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('telegram_id', $userId)
+                    ->limit(1);
+            })
                 ->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            if (!$expense) {
-                $this->telegram->editMessage($chatId, $messageId, "❌ Expense not found. It may have been already processed or expired.");
+            if (! $expense) {
+                $this->telegram->editMessage($chatId, $messageId, '❌ Expense not found. It may have been already processed or expired.');
+
                 return;
             }
 
@@ -365,7 +387,7 @@ class TelegramWebhookController extends Controller
 
             // If user selected a different category than suggested, learn from it
             if ($expense->category_id != $expense->suggested_category_id) {
-                $learningService = new CategoryLearningService();
+                $learningService = new CategoryLearningService;
                 $learningService->learn(
                     $expense->user_id,
                     $expense->description,
@@ -374,25 +396,25 @@ class TelegramWebhookController extends Controller
                 );
             }
 
-            $this->telegram->editMessage($chatId, $messageId, 
-                "✅ Expense confirmed and saved!\n\n" .
-                "💰 Amount: $" . number_format($expense->amount, 2) . "\n" .
-                "🏷️ Category: " . $expense->category->name
+            $this->telegram->editMessage($chatId, $messageId,
+                "✅ Expense confirmed and saved!\n\n".
+                '💰 Amount: $'.number_format($expense->amount, 2)."\n".
+                '🏷️ Category: '.$expense->category->name
             );
 
             Log::info('Expense confirmed (legacy format)', [
                 'expense_id' => $expense->id,
                 'user_id' => $expense->user_id,
-                'amount' => $expense->amount
+                'amount' => $expense->amount,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to confirm expense (legacy format)', [
                 'error' => $e->getMessage(),
-                'user_telegram_id' => $userId
+                'user_telegram_id' => $userId,
             ]);
-            
-            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to confirm expense. Please try creating a new expense.");
+
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to confirm expense. Please try creating a new expense.');
         }
     }
 
@@ -403,35 +425,35 @@ class TelegramWebhookController extends Controller
     {
         try {
             // Find the latest pending expense for this user
-            $expense = Expense::where('user_id', function($query) use ($userId) {
-                    $query->select('id')
-                        ->from('users')
-                        ->where('telegram_id', $userId)
-                        ->limit(1);
-                })
+            $expense = Expense::where('user_id', function ($query) use ($userId) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('telegram_id', $userId)
+                    ->limit(1);
+            })
                 ->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->first();
 
             if ($expense) {
                 $expense->delete();
-                $this->telegram->editMessage($chatId, $messageId, "❌ Expense cancelled.");
-                
+                $this->telegram->editMessage($chatId, $messageId, '❌ Expense cancelled.');
+
                 Log::info('Expense cancelled (legacy format)', [
                     'expense_id' => $expense->id,
-                    'user_id' => $expense->user_id
+                    'user_id' => $expense->user_id,
                 ]);
             } else {
-                $this->telegram->editMessage($chatId, $messageId, "❌ No pending expense found to cancel.");
+                $this->telegram->editMessage($chatId, $messageId, '❌ No pending expense found to cancel.');
             }
 
         } catch (\Exception $e) {
             Log::error('Failed to cancel expense (legacy format)', [
                 'error' => $e->getMessage(),
-                'user_telegram_id' => $userId
+                'user_telegram_id' => $userId,
             ]);
-            
-            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to cancel expense.");
+
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to cancel expense.');
         }
     }
 
@@ -440,7 +462,9 @@ class TelegramWebhookController extends Controller
      */
     private function editCategoryForLatestPendingExpense(string $chatId, int $messageId, string $userId)
     {
-        $this->telegram->sendCategorySelection($chatId);
+        $user = \App\Models\User::where('telegram_id', $userId)->first();
+        $language = $user ? $user->language : 'es';
+        $this->telegram->sendCategorySelection($chatId, null, $language);
     }
 
     /**
@@ -448,6 +472,49 @@ class TelegramWebhookController extends Controller
      */
     private function editDescriptionForLatestPendingExpense(string $chatId, int $messageId, string $userId)
     {
-        $this->telegram->editMessage($chatId, $messageId, "📝 To edit description, please cancel and create a new expense.");
+        $this->telegram->editMessage($chatId, $messageId, '📝 To edit description, please cancel and create a new expense.');
+    }
+
+    /**
+     * Handle language selection callback
+     */
+    private function handleLanguageSelection(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            // Extract language code from callback data
+            $language = str_replace('language_', '', $data);
+
+            // Validate language
+            if (! in_array($language, ['en', 'es'])) {
+                $this->telegram->editMessage($chatId, $messageId, '❌ Invalid language selection.');
+
+                return;
+            }
+
+            // Update user's language preference
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if ($user) {
+                $user->language = $language;
+                $user->save();
+
+                // Send success message in the new language
+                $message = trans('telegram.language_updated', [], $language);
+                $this->telegram->editMessage($chatId, $messageId, $message);
+
+                Log::info('User language updated', [
+                    'user_id' => $user->id,
+                    'language' => $language,
+                ]);
+            } else {
+                $this->telegram->editMessage($chatId, $messageId, '❌ User not found.');
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to update language', [
+                'error' => $e->getMessage(),
+                'user_telegram_id' => $userId,
+            ]);
+
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to update language. Please try again.');
+        }
     }
 }

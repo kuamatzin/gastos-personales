@@ -16,12 +16,12 @@ class Category extends Model
         'icon',
         'keywords',
         'is_active',
-        'sort_order'
+        'sort_order',
     ];
 
     protected $casts = [
         'keywords' => 'array',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
     public function parent(): BelongsTo

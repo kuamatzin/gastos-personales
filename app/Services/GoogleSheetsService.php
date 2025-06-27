@@ -2,64 +2,68 @@
 
 namespace App\Services;
 
+use App\Models\Category;
+use App\Models\Expense;
+use Exception;
 use Google\Client;
 use Google\Service\Sheets;
-use Google\Service\Sheets\ValueRange;
 use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
-use Google\Service\Sheets\Request as SheetsRequest;
-use App\Models\Expense;
-use App\Models\Category;
-use Illuminate\Support\Facades\Log;
-use Exception;
+use Google\Service\Sheets\ValueRange;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class GoogleSheetsService
 {
     private ?Client $client = null;
+
     private ?Sheets $service = null;
+
     private ?string $spreadsheetId = null;
-    
+
     private const SHEET_EXPENSES = 'Expenses';
+
     private const SHEET_CATEGORY_SUMMARY = 'Category Summary';
+
     private const SHEET_MONTHLY_TRENDS = 'Monthly Trends';
+
     private const SHEET_SETTINGS = 'Settings';
-    
+
     private const EXPENSE_COLUMNS = [
-        'Date', 'Amount', 'Currency', 'Description', 
-        'Category', 'Subcategory', 'Method', 'Confidence', 'ID'
+        'Date', 'Amount', 'Currency', 'Description',
+        'Category', 'Subcategory', 'Method', 'Confidence', 'ID',
     ];
-    
+
     public function __construct()
     {
         $this->spreadsheetId = config('services.google_sheets.spreadsheet_id');
     }
-    
+
     /**
      * Initialize Google Sheets client and service
      */
     public function initialize(): void
     {
-        if (!config('services.google_sheets.enabled')) {
+        if (! config('services.google_sheets.enabled')) {
             return;
         }
-        
+
         try {
-            $this->client = new Client();
+            $this->client = new Client;
             $this->client->setAuthConfig(config('services.google_sheets.credentials_path'));
             $this->client->addScope(Sheets::SPREADSHEETS);
             $this->client->setApplicationName('ExpenseBot');
-            
+
             $this->service = new Sheets($this->client);
-            
+
             $this->ensureSheetStructure();
         } catch (Exception $e) {
             Log::error('Failed to initialize Google Sheets', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
     }
-    
+
     /**
      * Ensure all required sheets exist with proper structure
      */
@@ -68,61 +72,61 @@ class GoogleSheetsService
         try {
             $spreadsheet = $this->service->spreadsheets->get($this->spreadsheetId);
             $existingSheets = array_map(
-                fn($sheet) => $sheet->getProperties()->getTitle(),
+                fn ($sheet) => $sheet->getProperties()->getTitle(),
                 $spreadsheet->getSheets()
             );
-            
+
             $requiredSheets = [
                 self::SHEET_EXPENSES,
                 self::SHEET_CATEGORY_SUMMARY,
                 self::SHEET_MONTHLY_TRENDS,
-                self::SHEET_SETTINGS
+                self::SHEET_SETTINGS,
             ];
-            
+
             $sheetsToCreate = array_diff($requiredSheets, $existingSheets);
-            
-            if (!empty($sheetsToCreate)) {
+
+            if (! empty($sheetsToCreate)) {
                 $this->createSheets($sheetsToCreate);
             }
-            
+
             // Ensure headers are set
             $this->ensureHeaders();
-            
+
         } catch (Exception $e) {
             Log::error('Failed to ensure sheet structure', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
     }
-    
+
     /**
      * Create missing sheets
      */
     private function createSheets(array $sheetNames): void
     {
         $requests = [];
-        
+
         foreach ($sheetNames as $sheetName) {
             $requests[] = [
                 'addSheet' => [
                     'properties' => [
-                        'title' => $sheetName
-                    ]
-                ]
+                        'title' => $sheetName,
+                    ],
+                ],
             ];
         }
-        
+
         $batchUpdateRequest = new BatchUpdateSpreadsheetRequest([
-            'requests' => $requests
+            'requests' => $requests,
         ]);
-        
+
         $this->service->spreadsheets->batchUpdate(
             $this->spreadsheetId,
             $batchUpdateRequest
         );
     }
-    
+
     /**
      * Ensure headers are set for all sheets
      */
@@ -131,55 +135,56 @@ class GoogleSheetsService
         // Set headers for Expenses sheet
         $expenseHeaders = [[
             'Date', 'Amount', 'Currency', 'Description',
-            'Category', 'Subcategory', 'Method', 'Confidence', 'ID'
+            'Category', 'Subcategory', 'Method', 'Confidence', 'ID',
         ]];
-        
-        $this->updateRange(self::SHEET_EXPENSES . '!A1:I1', $expenseHeaders);
-        
+
+        $this->updateRange(self::SHEET_EXPENSES.'!A1:I1', $expenseHeaders);
+
         // Set headers for Category Summary
         $categoryHeaders = [[
-            'Category', 'This Month', 'Last Month', 'Change %'
+            'Category', 'This Month', 'Last Month', 'Change %',
         ]];
-        
-        $this->updateRange(self::SHEET_CATEGORY_SUMMARY . '!A1:D1', $categoryHeaders);
-        
+
+        $this->updateRange(self::SHEET_CATEGORY_SUMMARY.'!A1:D1', $categoryHeaders);
+
         // Set headers for Monthly Trends
         $trendHeaders = [[
-            'Month', 'Food', 'Transport', 'Shopping', 
-            'Entertainment', 'Health', 'Bills', 'Other', 'Total'
+            'Month', 'Food', 'Transport', 'Shopping',
+            'Entertainment', 'Health', 'Bills', 'Other', 'Total',
         ]];
-        
-        $this->updateRange(self::SHEET_MONTHLY_TRENDS . '!A1:I1', $trendHeaders);
-        
+
+        $this->updateRange(self::SHEET_MONTHLY_TRENDS.'!A1:I1', $trendHeaders);
+
         // Set headers for Settings
         $settingsHeaders = [[
-            'Setting', 'Value', 'Last Updated'
+            'Setting', 'Value', 'Last Updated',
         ]];
-        
-        $this->updateRange(self::SHEET_SETTINGS . '!A1:C1', $settingsHeaders);
-        
+
+        $this->updateRange(self::SHEET_SETTINGS.'!A1:C1', $settingsHeaders);
+
         // Apply formatting
         $this->formatSheet();
     }
-    
+
     /**
      * Append a new expense to the sheet
      */
     public function appendExpense(Expense $expense): void
     {
-        if (!$this->isInitialized()) {
+        if (! $this->isInitialized()) {
             $this->initialize();
         }
-        
+
         try {
             // Check if expense already exists in the sheet
             if ($this->expenseExistsInSheet($expense->id)) {
                 Log::info('Expense already exists in Google Sheets, skipping', [
-                    'expense_id' => $expense->id
+                    'expense_id' => $expense->id,
                 ]);
+
                 return;
             }
-            
+
             $values = [[
                 $expense->expense_date->format('Y-m-d'),
                 $expense->amount,
@@ -189,36 +194,36 @@ class GoogleSheetsService
                 $expense->category->parent ? $expense->category->name : '',
                 $expense->inference_method ?? 'manual',
                 $expense->category_confidence ?? 1.0,
-                $expense->id
+                $expense->id,
             ]];
-            
+
             $body = new ValueRange([
-                'values' => $values
+                'values' => $values,
             ]);
-            
+
             $params = [
-                'valueInputOption' => 'USER_ENTERED'
+                'valueInputOption' => 'USER_ENTERED',
             ];
-            
+
             $this->service->spreadsheets_values->append(
                 $this->spreadsheetId,
-                self::SHEET_EXPENSES . '!A:I',
+                self::SHEET_EXPENSES.'!A:I',
                 $body,
                 $params
             );
-            
+
             // Update summaries
             $this->updateMonthlyTotals();
-            
+
         } catch (Exception $e) {
             Log::error('Failed to append expense to sheets', [
                 'expense_id' => $expense->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
     }
-    
+
     /**
      * Update monthly totals and category summaries
      */
@@ -227,54 +232,54 @@ class GoogleSheetsService
         try {
             $currentMonth = Carbon::now()->startOfMonth();
             $lastMonth = $currentMonth->copy()->subMonth();
-            
+
             // Get totals for current and last month
             $currentTotals = $this->getCategoryTotals($currentMonth, $currentMonth->copy()->endOfMonth());
             $lastTotals = $this->getCategoryTotals($lastMonth, $lastMonth->copy()->endOfMonth());
-            
+
             // Update Category Summary sheet
             $summaryData = [];
-            
+
             foreach ($currentTotals as $category => $amount) {
                 $lastAmount = $lastTotals[$category] ?? 0;
-                $change = $lastAmount > 0 
+                $change = $lastAmount > 0
                     ? round((($amount - $lastAmount) / $lastAmount) * 100, 1)
                     : 0;
-                
+
                 $summaryData[] = [
                     $category,
                     $amount,
                     $lastAmount,
-                    $change . '%'
+                    $change.'%',
                 ];
             }
-            
+
             // Clear existing data and write new
-            $this->clearRange(self::SHEET_CATEGORY_SUMMARY . '!A2:D100');
-            
-            if (!empty($summaryData)) {
+            $this->clearRange(self::SHEET_CATEGORY_SUMMARY.'!A2:D100');
+
+            if (! empty($summaryData)) {
                 $body = new ValueRange([
-                    'values' => $summaryData
+                    'values' => $summaryData,
                 ]);
-                
+
                 $this->service->spreadsheets_values->update(
                     $this->spreadsheetId,
-                    self::SHEET_CATEGORY_SUMMARY . '!A2',
+                    self::SHEET_CATEGORY_SUMMARY.'!A2',
                     $body,
                     ['valueInputOption' => 'USER_ENTERED']
                 );
             }
-            
+
             // Update Monthly Trends
             $this->updateMonthlyTrends();
-            
+
         } catch (Exception $e) {
             Log::error('Failed to update monthly totals', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Get category totals for a date range
      */
@@ -284,22 +289,22 @@ class GoogleSheetsService
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->where('status', 'confirmed')
             ->get();
-        
+
         $totals = [];
-        
+
         foreach ($expenses as $expense) {
             $categoryName = $expense->category->parent->name ?? $expense->category->name;
-            
-            if (!isset($totals[$categoryName])) {
+
+            if (! isset($totals[$categoryName])) {
                 $totals[$categoryName] = 0;
             }
-            
+
             $totals[$categoryName] += $expense->amount;
         }
-        
+
         return $totals;
     }
-    
+
     /**
      * Update monthly trends data
      */
@@ -309,13 +314,13 @@ class GoogleSheetsService
             // Get last 12 months of data
             $trends = [];
             $endDate = Carbon::now()->endOfMonth();
-            
+
             for ($i = 11; $i >= 0; $i--) {
                 $monthStart = $endDate->copy()->subMonths($i)->startOfMonth();
                 $monthEnd = $monthStart->copy()->endOfMonth();
-                
+
                 $monthTotals = $this->getCategoryTotals($monthStart, $monthEnd);
-                
+
                 $trend = [
                     $monthStart->format('Y-m'),
                     $monthTotals['Food'] ?? 0,
@@ -325,35 +330,35 @@ class GoogleSheetsService
                     $monthTotals['Health'] ?? 0,
                     $monthTotals['Bills'] ?? 0,
                     $monthTotals['Other'] ?? 0,
-                    array_sum($monthTotals)
+                    array_sum($monthTotals),
                 ];
-                
+
                 $trends[] = $trend;
             }
-            
+
             // Clear existing data and write new
-            $this->clearRange(self::SHEET_MONTHLY_TRENDS . '!A2:I100');
-            
-            if (!empty($trends)) {
+            $this->clearRange(self::SHEET_MONTHLY_TRENDS.'!A2:I100');
+
+            if (! empty($trends)) {
                 $body = new ValueRange([
-                    'values' => $trends
+                    'values' => $trends,
                 ]);
-                
+
                 $this->service->spreadsheets_values->update(
                     $this->spreadsheetId,
-                    self::SHEET_MONTHLY_TRENDS . '!A2',
+                    self::SHEET_MONTHLY_TRENDS.'!A2',
                     $body,
                     ['valueInputOption' => 'USER_ENTERED']
                 );
             }
-            
+
         } catch (Exception $e) {
             Log::error('Failed to update monthly trends', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Format the sheet with proper styling
      */
@@ -367,27 +372,27 @@ class GoogleSheetsService
                         'range' => [
                             'sheetId' => $this->getSheetId(self::SHEET_EXPENSES),
                             'startRowIndex' => 0,
-                            'endRowIndex' => 1
+                            'endRowIndex' => 1,
                         ],
                         'cell' => [
                             'userEnteredFormat' => [
                                 'backgroundColor' => [
                                     'red' => 0.2,
                                     'green' => 0.2,
-                                    'blue' => 0.2
+                                    'blue' => 0.2,
                                 ],
                                 'textFormat' => [
                                     'foregroundColor' => [
                                         'red' => 1.0,
                                         'green' => 1.0,
-                                        'blue' => 1.0
+                                        'blue' => 1.0,
                                     ],
-                                    'bold' => true
-                                ]
-                            ]
+                                    'bold' => true,
+                                ],
+                            ],
                         ],
-                        'fields' => 'userEnteredFormat(backgroundColor,textFormat)'
-                    ]
+                        'fields' => 'userEnteredFormat(backgroundColor,textFormat)',
+                    ],
                 ],
                 // Freeze header row
                 [
@@ -395,11 +400,11 @@ class GoogleSheetsService
                         'properties' => [
                             'sheetId' => $this->getSheetId(self::SHEET_EXPENSES),
                             'gridProperties' => [
-                                'frozenRowCount' => 1
-                            ]
+                                'frozenRowCount' => 1,
+                            ],
                         ],
-                        'fields' => 'gridProperties.frozenRowCount'
-                    ]
+                        'fields' => 'gridProperties.frozenRowCount',
+                    ],
                 ],
                 // Auto-resize columns
                 [
@@ -408,28 +413,28 @@ class GoogleSheetsService
                             'sheetId' => $this->getSheetId(self::SHEET_EXPENSES),
                             'dimension' => 'COLUMNS',
                             'startIndex' => 0,
-                            'endIndex' => 9
-                        ]
-                    ]
-                ]
+                            'endIndex' => 9,
+                        ],
+                    ],
+                ],
             ];
-            
+
             $batchUpdateRequest = new BatchUpdateSpreadsheetRequest([
-                'requests' => $requests
+                'requests' => $requests,
             ]);
-            
+
             $this->service->spreadsheets->batchUpdate(
                 $this->spreadsheetId,
                 $batchUpdateRequest
             );
-            
+
         } catch (Exception $e) {
             Log::error('Failed to format sheet', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Get sheet ID by name
      */
@@ -437,23 +442,24 @@ class GoogleSheetsService
     {
         try {
             $spreadsheet = $this->service->spreadsheets->get($this->spreadsheetId);
-            
+
             foreach ($spreadsheet->getSheets() as $sheet) {
                 if ($sheet->getProperties()->getTitle() === $sheetName) {
                     return $sheet->getProperties()->getSheetId();
                 }
             }
-            
+
             return null;
         } catch (Exception $e) {
             Log::error('Failed to get sheet ID', [
                 'sheet_name' => $sheetName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
-    
+
     /**
      * Update a specific range with values
      */
@@ -461,9 +467,9 @@ class GoogleSheetsService
     {
         try {
             $body = new ValueRange([
-                'values' => $values
+                'values' => $values,
             ]);
-            
+
             $this->service->spreadsheets_values->update(
                 $this->spreadsheetId,
                 $range,
@@ -473,11 +479,11 @@ class GoogleSheetsService
         } catch (Exception $e) {
             Log::error('Failed to update range', [
                 'range' => $range,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Clear a specific range
      */
@@ -491,11 +497,11 @@ class GoogleSheetsService
         } catch (Exception $e) {
             Log::error('Failed to clear range', [
                 'range' => $range,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Check if service is initialized
      */
@@ -503,7 +509,7 @@ class GoogleSheetsService
     {
         return $this->client !== null && $this->service !== null;
     }
-    
+
     /**
      * Check if expense already exists in the sheet
      */
@@ -511,55 +517,56 @@ class GoogleSheetsService
     {
         try {
             // Get all expense IDs from column I (ID column)
-            $range = self::SHEET_EXPENSES . '!I2:I';
+            $range = self::SHEET_EXPENSES.'!I2:I';
             $response = $this->service->spreadsheets_values->get(
                 $this->spreadsheetId,
                 $range
             );
-            
+
             $values = $response->getValues();
-            
-            if (!empty($values)) {
+
+            if (! empty($values)) {
                 foreach ($values as $row) {
                     if (isset($row[0]) && $row[0] == $expenseId) {
                         return true;
                     }
                 }
             }
-            
+
             return false;
-            
+
         } catch (Exception $e) {
             // If we can't check, assume it doesn't exist to avoid blocking
             Log::warning('Failed to check if expense exists in sheet', [
                 'expense_id' => $expenseId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
-    
+
     /**
      * Sync all historical expenses to sheets
      */
     public function syncHistoricalData(): void
     {
-        if (!$this->isInitialized()) {
+        if (! $this->isInitialized()) {
             $this->initialize();
         }
-        
+
         try {
             // Clear existing data
-            $this->clearRange(self::SHEET_EXPENSES . '!A2:I');
-            
+            $this->clearRange(self::SHEET_EXPENSES.'!A2:I');
+
             // Get all confirmed expenses
             $expenses = Expense::with('category.parent')
                 ->where('status', 'confirmed')
                 ->orderBy('expense_date')
                 ->get();
-            
+
             $values = [];
-            
+
             foreach ($expenses as $expense) {
                 $values[] = [
                     $expense->expense_date->format('Y-m-d'),
@@ -570,38 +577,38 @@ class GoogleSheetsService
                     $expense->category->parent ? $expense->category->name : '',
                     $expense->inference_method ?? 'manual',
                     $expense->category_confidence ?? 1.0,
-                    $expense->id
+                    $expense->id,
                 ];
             }
-            
-            if (!empty($values)) {
+
+            if (! empty($values)) {
                 // Batch update in chunks of 1000
                 $chunks = array_chunk($values, 1000);
-                
+
                 foreach ($chunks as $chunk) {
                     $body = new ValueRange([
-                        'values' => $chunk
+                        'values' => $chunk,
                     ]);
-                    
+
                     $this->service->spreadsheets_values->append(
                         $this->spreadsheetId,
-                        self::SHEET_EXPENSES . '!A:I',
+                        self::SHEET_EXPENSES.'!A:I',
                         $body,
                         ['valueInputOption' => 'USER_ENTERED']
                     );
                 }
             }
-            
+
             // Update summaries
             $this->updateMonthlyTotals();
-            
+
             Log::info('Historical data synced to Google Sheets', [
-                'expense_count' => count($expenses)
+                'expense_count' => count($expenses),
             ]);
-            
+
         } catch (Exception $e) {
             Log::error('Failed to sync historical data', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }

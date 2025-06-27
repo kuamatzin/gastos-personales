@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Redis;
 class ExpenseConfirmationService
 {
     protected TelegramService $telegramService;
+
     protected CategoryLearningService $learningService;
 
     public function __construct(
@@ -31,11 +32,12 @@ class ExpenseConfirmationService
             ->where('status', 'pending')
             ->first();
 
-        if (!$expense) {
+        if (! $expense) {
             Log::warning('Expense not found for confirmation', [
                 'user_id' => $user->id,
                 'expense_id' => $expenseId,
             ]);
+
             return false;
         }
 
@@ -78,7 +80,7 @@ class ExpenseConfirmationService
             ->where('status', 'pending')
             ->first();
 
-        if (!$expense) {
+        if (! $expense) {
             return false;
         }
 
@@ -111,7 +113,7 @@ class ExpenseConfirmationService
             ->whereIn('status', ['pending', 'confirmed'])
             ->first();
 
-        if (!$expense) {
+        if (! $expense) {
             return false;
         }
 
@@ -154,7 +156,7 @@ class ExpenseConfirmationService
             ->where('status', 'pending')
             ->first();
 
-        if (!$expense) {
+        if (! $expense) {
             return false;
         }
 
@@ -221,7 +223,7 @@ class ExpenseConfirmationService
     {
         $key = "expense_context:{$chatId}:{$expenseId}";
         $data = Redis::get($key);
-        
+
         return $data ? json_decode($data, true) : null;
     }
 
@@ -244,7 +246,7 @@ class ExpenseConfirmationService
             ->where('status', 'pending')
             ->first();
 
-        if (!$expense) {
+        if (! $expense) {
             return;
         }
 

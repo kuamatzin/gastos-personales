@@ -4,13 +4,13 @@ namespace App\Jobs;
 
 use App\Models\Expense;
 use App\Services\GoogleSheetsService;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class SyncExpenseToSheets implements ShouldQueue
 {
@@ -52,8 +52,9 @@ class SyncExpenseToSheets implements ShouldQueue
     {
         try {
             // Check if Google Sheets is enabled
-            if (!config('services.google_sheets.enabled')) {
+            if (! config('services.google_sheets.enabled')) {
                 Log::info('Google Sheets sync skipped - feature disabled');
+
                 return;
             }
 
@@ -61,7 +62,7 @@ class SyncExpenseToSheets implements ShouldQueue
             Log::info('Syncing expense to Google Sheets', [
                 'expense_id' => $this->expense->id,
                 'amount' => $this->expense->amount,
-                'category' => $this->expense->category->name ?? 'Unknown'
+                'category' => $this->expense->category->name ?? 'Unknown',
             ]);
 
             // Sync the expense
@@ -69,21 +70,22 @@ class SyncExpenseToSheets implements ShouldQueue
 
             // Log successful sync
             Log::info('Expense synced to Google Sheets successfully', [
-                'expense_id' => $this->expense->id
+                'expense_id' => $this->expense->id,
             ]);
 
         } catch (Exception $e) {
             Log::error('Failed to sync expense to Google Sheets', [
                 'expense_id' => $this->expense->id,
                 'error' => $e->getMessage(),
-                'attempt' => $this->attempts()
+                'attempt' => $this->attempts(),
             ]);
 
             // Check if this is a quota exceeded error
-            if (strpos($e->getMessage(), 'quota') !== false || 
+            if (strpos($e->getMessage(), 'quota') !== false ||
                 strpos($e->getMessage(), 'rate limit') !== false) {
                 // Release the job back to the queue with a longer delay
                 $this->release(600); // 10 minutes
+
                 return;
             }
 
@@ -99,7 +101,7 @@ class SyncExpenseToSheets implements ShouldQueue
     {
         Log::error('Google Sheets sync job failed permanently', [
             'expense_id' => $this->expense->id,
-            'error' => $exception->getMessage()
+            'error' => $exception->getMessage(),
         ]);
     }
 

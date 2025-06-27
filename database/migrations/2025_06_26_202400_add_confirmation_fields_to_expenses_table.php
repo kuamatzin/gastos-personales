@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamp('rejected_at')->nullable()->after('confirmed_at');
             $table->text('rejection_reason')->nullable()->after('rejected_at');
             $table->json('metadata')->nullable()->after('merchant_name');
-            
+
             // Add indexes for performance
             $table->index(['status', 'created_at']);
             $table->index(['user_id', 'status']);

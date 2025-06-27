@@ -6,11 +6,11 @@ use App\Models\Category;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class CategoryInferenceService
 {
     private OpenAIService $openAIService;
+
     private CategoryLearningService $categoryLearningService;
 
     public function __construct(
@@ -28,29 +28,29 @@ class CategoryInferenceService
     {
         // 1. Try user's historical patterns first (highest priority)
         $userPattern = $this->categoryLearningService->findBestMatch($user, $description);
-        
+
         if ($userPattern && $userPattern['confidence'] >= 0.85) {
             return [
                 'category_id' => $userPattern['category_id'],
                 'confidence' => $userPattern['confidence'],
-                'method' => 'user_learning'
+                'method' => 'user_learning',
             ];
         }
 
         // 2. Use keyword matching with predefined categories
         $keywordMatch = $this->matchByKeywords($description, $amount);
-        
+
         if ($keywordMatch && $keywordMatch['confidence'] >= 0.75) {
             return $keywordMatch;
         }
 
         // 3. Use OpenAI for complex inference
         $aiInference = $this->openAIService->inferCategory($description, $amount);
-        
+
         return [
             'category_id' => $aiInference['category_id'],
             'confidence' => $aiInference['confidence'],
-            'method' => 'ai_inference'
+            'method' => 'ai_inference',
         ];
     }
 
@@ -74,19 +74,19 @@ class CategoryInferenceService
                 $keyword = strtolower($keyword);
                 if (str_contains($description, $keyword)) {
                     // Give higher score for exact word matches
-                    if (preg_match('/\b' . preg_quote($keyword, '/') . '\b/', $description)) {
+                    if (preg_match('/\b'.preg_quote($keyword, '/').'\b/', $description)) {
                         $score += 0.3;
                     } else {
                         $score += 0.15;
                     }
-                    
+
                     // Bonus for longer keywords (more specific)
                     $score += strlen($keyword) / 100;
                 }
             }
 
             // Check if merchant name matches
-            if (!empty($category->keywords)) {
+            if (! empty($category->keywords)) {
                 foreach ($category->keywords as $merchant) {
                     if (str_contains($description, strtolower($merchant))) {
                         $score += 0.4;
@@ -115,7 +115,7 @@ class CategoryInferenceService
                 $bestMatch = [
                     'category_id' => $category->id,
                     'confidence' => min($score, 0.95),
-                    'method' => 'keyword_matching'
+                    'method' => 'keyword_matching',
                 ];
             }
         }
@@ -129,18 +129,18 @@ class CategoryInferenceService
     private function matchesAmountPattern(Category $category, float $amount): bool
     {
         $amountPatterns = $this->getAmountPatterns();
-        
+
         $slug = $category->slug;
         $pattern = $amountPatterns[$slug] ?? null;
 
-        if (!$pattern) {
+        if (! $pattern) {
             // Check parent category pattern
             if ($category->parent) {
                 $pattern = $amountPatterns[$category->parent->slug] ?? null;
             }
         }
 
-        if (!$pattern) {
+        if (! $pattern) {
             return false;
         }
 
@@ -160,23 +160,23 @@ class CategoryInferenceService
             'groceries' => ['min' => 100, 'max' => 3000],
             'delivery' => ['min' => 80, 'max' => 500],
             'alcohol' => ['min' => 50, 'max' => 2000],
-            
+
             // Transportation
             'public_transport' => ['min' => 5, 'max' => 50],
             'ride_sharing' => ['min' => 40, 'max' => 500],
             'fuel' => ['min' => 200, 'max' => 1500],
             'parking' => ['min' => 10, 'max' => 200],
             'tolls' => ['min' => 20, 'max' => 500],
-            
+
             // Shopping
             'clothing' => ['min' => 100, 'max' => 5000],
             'electronics' => ['min' => 200, 'max' => 50000],
             'personal_care' => ['min' => 50, 'max' => 1000],
-            
+
             // Entertainment
             'movies' => ['min' => 50, 'max' => 300],
             'streaming_services' => ['min' => 99, 'max' => 299],
-            
+
             // Bills
             'rent_mortgage' => ['min' => 3000, 'max' => 50000],
             'electricity' => ['min' => 200, 'max' => 5000],
@@ -191,7 +191,7 @@ class CategoryInferenceService
     public function buildCategorySuggestions(float $confidence, int $categoryId, User $user, string $description): array
     {
         $suggestions = [];
-        
+
         // Primary suggestion
         $primaryCategory = Category::find($categoryId);
         if ($primaryCategory) {
@@ -200,7 +200,7 @@ class CategoryInferenceService
                 'name' => $primaryCategory->name,
                 'icon' => $primaryCategory->icon ?? '📋',
                 'confidence' => $confidence,
-                'is_primary' => true
+                'is_primary' => true,
             ];
         }
 
@@ -208,7 +208,7 @@ class CategoryInferenceService
         if ($confidence < 0.9) {
             // Get user's frequently used categories
             $frequentCategories = $this->getUserFrequentCategories($user, 3);
-            
+
             foreach ($frequentCategories as $category) {
                 if ($category->id !== $categoryId) {
                     $suggestions[] = [
@@ -216,11 +216,11 @@ class CategoryInferenceService
                         'name' => $category->name,
                         'icon' => $category->icon ?? '📋',
                         'confidence' => 0,
-                        'is_primary' => false
+                        'is_primary' => false,
                     ];
                 }
             }
-            
+
             // Add "Other" category as last option
             $otherCategory = Category::where('slug', 'miscellaneous')->first();
             if ($otherCategory && $otherCategory->id !== $categoryId) {
@@ -229,7 +229,7 @@ class CategoryInferenceService
                     'name' => $otherCategory->name,
                     'icon' => $otherCategory->icon ?? '📋',
                     'confidence' => 0,
-                    'is_primary' => false
+                    'is_primary' => false,
                 ];
             }
         }

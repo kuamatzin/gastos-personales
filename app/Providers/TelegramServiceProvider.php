@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use App\Services\TelegramService;
-use App\Services\ExpenseConfirmationService;
 use App\Services\CategoryLearningService;
+use App\Services\ExpenseConfirmationService;
+use App\Services\TelegramService;
 use Illuminate\Support\ServiceProvider;
 
 class TelegramServiceProvider extends ServiceProvider
@@ -15,7 +15,7 @@ class TelegramServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TelegramService::class, function ($app) {
-            return new TelegramService();
+            return new TelegramService;
         });
 
         $this->app->singleton(ExpenseConfirmationService::class, function ($app) {

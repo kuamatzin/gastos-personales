@@ -41,18 +41,18 @@ return [
             'liverpool', 'palacio de hierro', 'sanborns', 'vips', 'toks',
             'starbucks', 'italian coffee', 'punta del cielo',
         ],
-        
+
         'transport' => [
             'uber', 'didi', 'cabify', 'metrobus', 'metro', 'ado', 'estrella roja',
             'pemex', 'shell', 'mobil', 'bp', 'oxxo gas',
         ],
-        
+
         'food_places' => [
             'tacos', 'tortas', 'quesadillas', 'tamales', 'elotes',
             'mcdonalds', 'burger king', 'kfc', 'dominos', 'pizza hut',
             'little caesars', 'subway', 'carl\'s jr',
         ],
-        
+
         'services' => [
             'telmex', 'telcel', 'at&t', 'movistar', 'izzi', 'totalplay',
             'cfe', 'sacmex', 'gas natural',

@@ -33,7 +33,7 @@ return new class extends Migration
                 'telegram_first_name',
                 'telegram_last_name',
                 'is_active',
-                'preferences'
+                'preferences',
             ]);
         });
     }

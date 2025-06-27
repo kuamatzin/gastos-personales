@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 class ProcessExpenseImage extends BaseExpenseProcessor
 {
     protected string $fileId;
+
     protected ?string $tempFile = null;
 
     /**
@@ -45,7 +46,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
             $this->tempFile = $this->downloadTelegramFile($this->fileId);
 
             // Step 2: Extract text from image using OCR
-            Log::alert("Extracting text from image using OCR");
+            Log::alert('Extracting text from image using OCR');
             $ocrResult = $ocrService->extractTextFromImage($this->tempFile);
             $extractedText = $ocrResult['text'] ?? '';
 
@@ -57,7 +58,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
             $expenseData = $openAIService->extractExpenseData($extractedText);
 
             // Step 4: Infer category if not already set
-            if (!isset($expenseData['category_id'])) {
+            if (! isset($expenseData['category_id'])) {
                 $categoryInference = $categoryService->inferCategory(
                     $user,
                     $expenseData['description'],
@@ -106,8 +107,9 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 $this->userId,
                 array_merge($expenseData, [
                     'expense_id' => $expense->id,
-                    'ocr_preview' => substr($extractedText, 0, 200) . '...',
-                ])
+                    'ocr_preview' => substr($extractedText, 0, 200).'...',
+                ]),
+                $user->language ?? 'es'
             );
 
             $this->logComplete('image', [

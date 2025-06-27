@@ -1,0 +1,82 @@
+<?php
+
+return [
+    'welcome' => "¡Bienvenido a ExpenseBot! 🎉\n\nTe ayudaré a registrar tus gastos. Solo envíame:\n• Texto con el monto y descripción\n• Notas de voz\n• Fotos de recibos\n\nUsa /ayuda para ver todos los comandos disponibles.",
+
+    'help' => "Comandos disponibles:\n\n📊 *Reportes*\n/gastos_hoy - Gastos de hoy\n/gastos_semana - Gastos de esta semana\n/gastos_mes - Gastos de este mes\n/gastos_categoria - Gastos por categoría\n/categorias_top - Categorías con más gastos\n/estadisticas - Estadísticas y análisis\n\n📤 *Exportar*\n/exportar - Exportar tus gastos\n\n⚙️ *Configuración*\n/idioma - Cambiar idioma\n/cancelar - Cancelar operación actual\n\n*Cómo agregar gastos:*\nSolo envíame un mensaje con el monto y descripción. Por ejemplo:\n• \"50 café\"\n• \"$120 despensa\"\n• Nota de voz describiendo tu gasto\n• Foto de un recibo",
+
+    'expense_saved' => "✅ ¡Gasto guardado exitosamente!\n\n💰 Monto: $:amount\n📝 Descripción: :description\n🏷 Categoría: :category\n📅 Fecha: :date",
+
+    'expense_today_header' => "📊 *Gastos de Hoy*\n:date\n\n",
+    'expense_week_header' => "📊 *Gastos de Esta Semana*\n:start_date - :end_date\n\n",
+    'expense_month_header' => "📊 *Gastos de Este Mes*\n:month :year\n\n",
+
+    'expense_item' => "• :description - $:amount (:category)\n",
+    'total' => "\n💰 *Total: $:amount*",
+    'no_expenses' => 'No se encontraron gastos para este período.',
+
+    'category_spending_header' => "📊 *Gastos por Categoría*\n:period\n\n",
+    'category_item' => "• :category: $:amount (:percentage%)\n",
+
+    'top_categories_header' => "🏆 *Categorías con Más Gastos*\n:period\n\n",
+    'top_category_item' => ":position. :category: $:amount (:percentage%)\n",
+
+    'stats_header' => "📈 *Tus Estadísticas de Gastos*\n\n",
+    'stats_total' => "💰 *Total de gastos:* $:amount\n",
+    'stats_average_daily' => "📅 *Promedio diario:* $:amount\n",
+    'stats_average_weekly' => "📅 *Promedio semanal:* $:amount\n",
+    'stats_average_monthly' => "📅 *Promedio mensual:* $:amount\n",
+    'stats_expense_count' => "🧾 *Número de gastos:* :count\n",
+    'stats_average_expense' => "💵 *Promedio por gasto:* $:amount\n",
+    'stats_most_expensive' => "💸 *Más caro:* :description ($:amount)\n",
+    'stats_most_frequent' => "🏷 *Categoría más frecuente:* :category (:count gastos)\n",
+
+    'export_generating' => '📤 Generando tu reporte de gastos...',
+    'export_period_selection' => 'Por favor selecciona el período que deseas exportar:',
+    'export_current_month' => 'Mes Actual',
+    'export_last_month' => 'Mes Pasado',
+    'export_last_3_months' => 'Últimos 3 Meses',
+    'export_current_year' => 'Año Actual',
+    'export_all_time' => 'Todo el Tiempo',
+
+    'cancel_no_operation' => 'No hay operación activa para cancelar.',
+    'cancel_success' => 'Operación cancelada exitosamente.',
+
+    'language_selection' => 'Por favor selecciona tu idioma preferido:',
+    'language_updated' => '✅ ¡Idioma actualizado exitosamente!',
+
+    'error_processing' => '❌ Error al procesar tu solicitud. Por favor intenta de nuevo.',
+    'error_invalid_amount' => '❌ No se pudo detectar un monto válido. Por favor incluye un número en tu mensaje.',
+    'error_voice_processing' => '❌ Error al procesar el mensaje de voz. Por favor intenta de nuevo.',
+    'error_image_processing' => '❌ Error al procesar la imagen. Por favor intenta de nuevo.',
+
+    'confirm_expense' => "Por favor confirma este gasto:\n\n💰 Monto: $:amount\n📝 Descripción: :description\n🏷 Categoría: :category",
+    'confirm_yes' => '✅ Confirmar',
+    'confirm_no' => '❌ Cancelar',
+    'expense_cancelled' => '❌ Gasto cancelado.',
+
+    'processing_voice' => '🎤 Procesando mensaje de voz...',
+    'processing_image' => '📸 Procesando imagen...',
+    'processing_text' => '💬 Procesando gasto...',
+
+    // Botones del teclado
+    'button_confirm' => '✅ Confirmar',
+    'button_cancel' => '❌ Cancelar',
+    'button_edit_category' => '✏️ Editar Categoría',
+    'button_edit_description' => '📝 Editar Descripción',
+    'button_view_subcategories' => '🔍 Ver Subcategorías',
+    'button_back' => '↩️ Atrás',
+    'button_select_category' => '🏷️ *Selecciona una categoría:*',
+
+    // Botones de exportación
+    'button_excel' => '📊 Excel',
+    'button_pdf' => '📄 PDF',
+    'button_csv' => '💾 CSV',
+    'button_quick_export' => '⚡ Exportación Rápida (Este Mes)',
+
+    // Botones de período
+    'button_today' => '📊 Gastos de Hoy',
+    'button_this_month' => '📅 Este Mes',
+    'button_statistics' => '📈 Estadísticas',
+    'button_help' => '❓ Ayuda',
+];

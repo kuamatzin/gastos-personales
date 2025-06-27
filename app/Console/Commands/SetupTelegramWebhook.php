@@ -36,21 +36,22 @@ class SetupTelegramWebhook extends Command
     private function setWebhook(TelegramService $telegram)
     {
         $url = $this->argument('url');
-        
-        if (!$url) {
+
+        if (! $url) {
             $appUrl = config('app.url');
-            if (!$appUrl || $appUrl === 'http://localhost') {
+            if (! $appUrl || $appUrl === 'http://localhost') {
                 $this->error('Please provide a URL or set APP_URL in your .env file');
                 $this->info('Example: php artisan telegram:webhook:set https://your-domain.com');
+
                 return;
             }
-            $url = rtrim($appUrl, '/') . '/api/telegram/webhook';
+            $url = rtrim($appUrl, '/').'/api/telegram/webhook';
         }
 
         $this->info("Setting webhook to: {$url}");
-        
+
         $result = $telegram->setWebhook($url);
-        
+
         if ($result['ok'] ?? false) {
             $this->info('✅ Webhook set successfully!');
             $this->table(
@@ -62,21 +63,21 @@ class SetupTelegramWebhook extends Command
             );
         } else {
             $this->error('❌ Failed to set webhook');
-            $this->error('Error: ' . ($result['description'] ?? 'Unknown error'));
+            $this->error('Error: '.($result['description'] ?? 'Unknown error'));
         }
     }
 
     private function deleteWebhook(TelegramService $telegram)
     {
         $this->info('Deleting webhook...');
-        
+
         $result = $telegram->deleteWebhook();
-        
+
         if ($result['ok'] ?? false) {
             $this->info('✅ Webhook deleted successfully!');
         } else {
             $this->error('❌ Failed to delete webhook');
-            $this->error('Error: ' . ($result['description'] ?? 'Unknown error'));
+            $this->error('Error: '.($result['description'] ?? 'Unknown error'));
         }
     }
 }

@@ -2,16 +2,17 @@
 
 namespace App\Strategies;
 
-use App\Services\SpeechToTextService;
 use App\Services\FileProcessingService;
-use Illuminate\Support\Facades\Log;
+use App\Services\SpeechToTextService;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class VoiceNoteStrategy implements ProcessingStrategy
 {
     private SpeechToTextService $speechService;
+
     private FileProcessingService $fileService;
-    
+
     private const SUPPORTED_MIME_TYPES = [
         'audio/ogg',
         'audio/mpeg',
@@ -20,9 +21,9 @@ class VoiceNoteStrategy implements ProcessingStrategy
         'audio/x-wav',
         'audio/flac',
         'audio/x-flac',
-        'application/ogg'
+        'application/ogg',
     ];
-    
+
     public function __construct(
         SpeechToTextService $speechService,
         FileProcessingService $fileService
@@ -30,7 +31,7 @@ class VoiceNoteStrategy implements ProcessingStrategy
         $this->speechService = $speechService;
         $this->fileService = $fileService;
     }
-    
+
     /**
      * Check if this strategy can process the given file type
      */
@@ -38,7 +39,7 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         return in_array(strtolower($mimeType), self::SUPPORTED_MIME_TYPES);
     }
-    
+
     /**
      * Process voice note and extract text
      */
@@ -46,10 +47,10 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         try {
             Log::info('Processing voice note', ['path' => $filePath]);
-            
+
             // Check if it's a Telegram voice note (usually OGG)
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-            
+
             if ($extension === 'ogg' || $extension === 'oga') {
                 // Use specialized Telegram audio processing
                 $transcriptionResult = $this->speechService->processTelegramAudio($filePath);
@@ -57,17 +58,17 @@ class VoiceNoteStrategy implements ProcessingStrategy
                 // Standard audio processing
                 $transcriptionResult = $this->speechService->transcribeAudio($filePath, 'es-MX');
             }
-            
+
             if (empty($transcriptionResult['transcript'])) {
                 throw new Exception('No speech detected in audio file');
             }
-            
+
             // Extract expense information from transcript
             $expenseData = $this->extractExpenseFromTranscript(
                 $transcriptionResult['transcript'],
                 $transcriptionResult['language'] ?? 'es-MX'
             );
-            
+
             return [
                 'success' => true,
                 'type' => 'voice',
@@ -76,35 +77,35 @@ class VoiceNoteStrategy implements ProcessingStrategy
                     'confidence' => $transcriptionResult['confidence'],
                     'language' => $transcriptionResult['language'] ?? 'es-MX',
                     'duration' => $transcriptionResult['duration'] ?? null,
-                    'words' => $transcriptionResult['words'] ?? []
+                    'words' => $transcriptionResult['words'] ?? [],
                 ],
                 'expense' => $expenseData,
                 'metadata' => [
                     'file_size' => filesize($filePath),
                     'mime_type' => mime_content_type($filePath),
-                    'duration' => $transcriptionResult['duration'] ?? null
-                ]
+                    'duration' => $transcriptionResult['duration'] ?? null,
+                ],
             ];
-            
+
         } catch (Exception $e) {
             Log::error('Voice note processing failed', [
                 'path' => $filePath,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             // Try converting audio format and retry
             if (strpos($e->getMessage(), 'format') !== false) {
                 return $this->processWithConversion($filePath);
             }
-            
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'type' => 'voice'
+                'type' => 'voice',
             ];
         }
     }
-    
+
     /**
      * Process audio with format conversion
      */
@@ -112,26 +113,26 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         try {
             Log::info('Attempting audio conversion', ['path' => $filePath]);
-            
+
             // Convert to WAV format
             $convertedPath = $this->fileService->convertAudioFormat($filePath, 'wav');
-            
+
             // Try transcription again
             $transcriptionResult = $this->speechService->transcribeAudio($convertedPath, 'es-MX');
-            
+
             // Clean up converted file
             $this->fileService->cleanupTempFiles([$convertedPath]);
-            
+
             if (empty($transcriptionResult['transcript'])) {
                 throw new Exception('No speech detected after conversion');
             }
-            
+
             // Extract expense information
             $expenseData = $this->extractExpenseFromTranscript(
                 $transcriptionResult['transcript'],
                 $transcriptionResult['language'] ?? 'es-MX'
             );
-            
+
             return [
                 'success' => true,
                 'type' => 'voice',
@@ -139,25 +140,25 @@ class VoiceNoteStrategy implements ProcessingStrategy
                     'text' => $transcriptionResult['transcript'],
                     'confidence' => $transcriptionResult['confidence'],
                     'language' => $transcriptionResult['language'] ?? 'es-MX',
-                    'converted' => true
+                    'converted' => true,
                 ],
-                'expense' => $expenseData
+                'expense' => $expenseData,
             ];
-            
+
         } catch (Exception $e) {
             Log::error('Voice conversion and processing failed', [
                 'path' => $filePath,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Failed to process audio: ' . $e->getMessage(),
-                'type' => 'voice'
+                'error' => 'Failed to process audio: '.$e->getMessage(),
+                'type' => 'voice',
             ];
         }
     }
-    
+
     /**
      * Extract expense information from transcribed text
      */
@@ -165,31 +166,31 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         $expense = [
             'description' => $transcript,
-            'confidence' => 0.7 // Base confidence for voice
+            'confidence' => 0.7, // Base confidence for voice
         ];
-        
+
         // Extract amounts
         $amounts = $this->findSpokenAmounts($transcript, $language);
-        if (!empty($amounts)) {
+        if (! empty($amounts)) {
             $expense['amount'] = max($amounts);
             $expense['all_amounts'] = $amounts;
         }
-        
+
         // Extract merchant/location
         $merchant = $this->findMerchant($transcript, $language);
         if ($merchant) {
             $expense['merchant'] = $merchant;
         }
-        
+
         // Extract payment method
         $paymentMethod = $this->findPaymentMethod($transcript, $language);
         if ($paymentMethod) {
             $expense['payment_method'] = $paymentMethod;
         }
-        
+
         return $expense;
     }
-    
+
     /**
      * Find amounts in spoken text
      */
@@ -197,7 +198,7 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         $amounts = [];
         $text = mb_strtolower($text);
-        
+
         // Patterns for Spanish
         if (strpos($language, 'es') === 0) {
             $patterns = [
@@ -210,10 +211,10 @@ class VoiceNoteStrategy implements ProcessingStrategy
             $patterns = [
                 '/([\d,]+(?:\.\d{2})?)\s*dollars?/',
                 '/([\d,]+(?:\.\d{2})?)\s*pesos?/',
-                '/\$([\d,]+(?:\.\d{2})?)/,
+                '/\$([\d,]+(?:\.\d{2})?)/',
             ];
         }
-        
+
         foreach ($patterns as $pattern) {
             if (preg_match_all($pattern, $text, $matches)) {
                 // Handle "X con Y centavos" pattern
@@ -235,23 +236,23 @@ class VoiceNoteStrategy implements ProcessingStrategy
                 }
             }
         }
-        
+
         // Also check for written numbers in Spanish
         if (strpos($language, 'es') === 0) {
             $writtenNumbers = $this->findWrittenNumbersSpanish($text);
             $amounts = array_merge($amounts, $writtenNumbers);
         }
-        
+
         return array_unique($amounts);
     }
-    
+
     /**
      * Find written numbers in Spanish
      */
     private function findWrittenNumbersSpanish(string $text): array
     {
         $amounts = [];
-        
+
         // Common written amounts
         $writtenAmounts = [
             'diez' => 10,
@@ -269,59 +270,59 @@ class VoiceNoteStrategy implements ProcessingStrategy
             'cuatrocientos' => 400,
             'quinientos' => 500,
         ];
-        
+
         foreach ($writtenAmounts as $written => $value) {
-            if (strpos($text, $written . ' pesos') !== false) {
+            if (strpos($text, $written.' pesos') !== false) {
                 $amounts[] = (float) $value;
             }
         }
-        
+
         return $amounts;
     }
-    
+
     /**
      * Find merchant in transcript
      */
     private function findMerchant(string $text, string $language): ?string
     {
         $markers = [];
-        
+
         if (strpos($language, 'es') === 0) {
             $markers = ['en ', 'de ', 'del ', 'tienda ', 'restaurante ', 'supermercado '];
         } else {
             $markers = ['at ', 'from ', 'store ', 'restaurant ', 'supermarket '];
         }
-        
+
         foreach ($markers as $marker) {
             $pos = stripos($text, $marker);
             if ($pos !== false) {
                 $afterMarker = substr($text, $pos + strlen($marker), 50);
                 $words = explode(' ', $afterMarker);
-                
+
                 // Take first 2-3 words as merchant name
                 $merchantWords = array_slice($words, 0, 3);
                 $merchant = implode(' ', $merchantWords);
-                
+
                 // Clean up
                 $merchant = preg_replace('/[.,;:!?]/', '', $merchant);
                 $merchant = trim($merchant);
-                
+
                 if (strlen($merchant) > 2) {
                     return ucwords($merchant);
                 }
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * Find payment method in transcript
      */
     private function findPaymentMethod(string $text, string $language): ?string
     {
         $text = mb_strtolower($text);
-        
+
         $methods = [
             'efectivo' => 'efectivo',
             'cash' => 'efectivo',
@@ -334,16 +335,16 @@ class VoiceNoteStrategy implements ProcessingStrategy
             'transferencia' => 'transferencia',
             'transfer' => 'transferencia',
         ];
-        
+
         foreach ($methods as $keyword => $method) {
             if (strpos($text, $keyword) !== false) {
                 return $method;
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * Get supported MIME types
      */
@@ -351,7 +352,7 @@ class VoiceNoteStrategy implements ProcessingStrategy
     {
         return self::SUPPORTED_MIME_TYPES;
     }
-    
+
     /**
      * Get strategy name
      */

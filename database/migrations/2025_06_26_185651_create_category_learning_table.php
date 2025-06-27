@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('usage_count')->default(1);
             $table->timestamp('last_used_at');
             $table->timestamps();
-            
+
             $table->unique(['user_id', 'keyword', 'category_id']);
             $table->index(['user_id', 'keyword']);
         });

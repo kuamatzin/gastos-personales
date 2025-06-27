@@ -27,16 +27,17 @@ class TelegramWebhookInfo extends Command
     public function handle(TelegramService $telegram)
     {
         $this->info('Fetching webhook information...');
-        
+
         $result = $telegram->getWebhookInfo();
-        
-        if (!$result['ok'] ?? false) {
+
+        if (! $result['ok'] ?? false) {
             $this->error('Failed to get webhook info');
+
             return;
         }
-        
+
         $info = $result['result'];
-        
+
         $this->info('📡 Webhook Information:');
         $this->table(
             ['Property', 'Value'],

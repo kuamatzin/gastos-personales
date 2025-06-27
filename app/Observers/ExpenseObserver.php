@@ -2,8 +2,8 @@
 
 namespace App\Observers;
 
-use App\Models\Expense;
 use App\Jobs\SyncExpenseToSheets;
+use App\Models\Expense;
 use Illuminate\Support\Facades\Log;
 
 class ExpenseObserver
@@ -25,8 +25,8 @@ class ExpenseObserver
     public function updated(Expense $expense): void
     {
         // Only sync if status changed from non-confirmed to confirmed
-        if ($expense->status === 'confirmed' && 
-            $expense->wasChanged('status') && 
+        if ($expense->status === 'confirmed' &&
+            $expense->wasChanged('status') &&
             $expense->getOriginal('status') !== 'confirmed') {
             $this->syncToSheets($expense);
         }
@@ -41,9 +41,9 @@ class ExpenseObserver
         Log::info('Expense deleted', [
             'expense_id' => $expense->id,
             'amount' => $expense->amount,
-            'category' => $expense->category->name ?? 'Unknown'
+            'category' => $expense->category->name ?? 'Unknown',
         ]);
-        
+
         // Note: We don't remove from sheets to maintain historical records
         // You might want to implement a soft delete column in sheets instead
     }
@@ -67,7 +67,7 @@ class ExpenseObserver
         // Log force deletion
         Log::warning('Expense force deleted', [
             'expense_id' => $expense->id,
-            'amount' => $expense->amount
+            'amount' => $expense->amount,
         ]);
     }
 
@@ -82,15 +82,15 @@ class ExpenseObserver
                 SyncExpenseToSheets::dispatch($expense)
                     ->onQueue('default')
                     ->delay(now()->addSeconds(2)); // Small delay to ensure all data is committed
-                
+
                 Log::info('Google Sheets sync job dispatched', [
-                    'expense_id' => $expense->id
+                    'expense_id' => $expense->id,
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('Failed to dispatch Google Sheets sync job', [
                 'expense_id' => $expense->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

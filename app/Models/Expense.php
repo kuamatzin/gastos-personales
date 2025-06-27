@@ -24,7 +24,7 @@ class Expense extends Model
         'confirmed_at',
         'rejected_at',
         'rejection_reason',
-        'metadata'
+        'metadata',
     ];
 
     protected $casts = [
@@ -34,13 +34,17 @@ class Expense extends Model
         'category_confidence' => 'float',
         'confirmed_at' => 'datetime',
         'rejected_at' => 'datetime',
-        'metadata' => 'array'
+        'metadata' => 'array',
     ];
 
     const STATUS_PENDING = 'pending';
+
     const STATUS_CONFIRMED = 'confirmed';
+
     const STATUS_AUTO_CONFIRMED = 'auto_confirmed';
+
     const STATUS_REJECTED = 'rejected';
+
     const STATUS_NEEDS_REVIEW = 'needs_review';
 
     public function user(): BelongsTo
@@ -70,6 +74,6 @@ class Expense extends Model
 
     public function getFormattedAmountAttribute(): string
     {
-        return '$' . number_format($this->amount, 2) . ' ' . $this->currency;
+        return '$'.number_format($this->amount, 2).' '.$this->currency;
     }
 }

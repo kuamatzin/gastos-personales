@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\CategoryLearning;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class CategoryLearningService
 {
@@ -15,7 +14,7 @@ class CategoryLearningService
     public function findBestMatch(User $user, string $description): ?array
     {
         $keywords = $this->extractKeywords($description);
-        
+
         if (empty($keywords)) {
             return null;
         }
@@ -36,16 +35,16 @@ class CategoryLearningService
 
             foreach ($learnings as $learning) {
                 $categoryId = $learning->category_id;
-                
-                if (!isset($matches[$categoryId])) {
+
+                if (! isset($matches[$categoryId])) {
                     $matches[$categoryId] = [
                         'category_id' => $categoryId,
                         'total_weight' => 0,
                         'keyword_count' => 0,
-                        'keywords' => []
+                        'keywords' => [],
                     ];
                 }
-                
+
                 $matches[$categoryId]['total_weight'] += $learning->confidence_weight;
                 $matches[$categoryId]['keyword_count']++;
                 $matches[$categoryId]['keywords'][] = $keyword;
@@ -65,19 +64,19 @@ class CategoryLearningService
             // - Total weight of matching keywords
             // - Number of matching keywords vs total keywords
             // - Recency factor (handled by confidence_weight)
-            
+
             $keywordCoverage = $match['keyword_count'] / count($keywords);
             $averageWeight = $match['total_weight'] / $match['keyword_count'];
-            
+
             // Confidence formula
             $confidence = ($keywordCoverage * 0.6) + (min($averageWeight, 2) / 2 * 0.4);
-            
+
             if ($confidence > $highestConfidence) {
                 $highestConfidence = $confidence;
                 $bestMatch = [
                     'category_id' => $categoryId,
                     'confidence' => min($confidence, 1.0),
-                    'matching_keywords' => $match['keywords']
+                    'matching_keywords' => $match['keywords'],
                 ];
             }
         }
@@ -96,7 +95,7 @@ class CategoryLearningService
             $learning = CategoryLearning::firstOrNew([
                 'user_id' => $user->id,
                 'keyword' => $keyword,
-                'category_id' => $categoryId
+                'category_id' => $categoryId,
             ]);
 
             if ($learning->exists) {
@@ -123,12 +122,12 @@ class CategoryLearningService
      */
     private function learnMerchant(User $user, string $merchantName, int $categoryId): void
     {
-        $merchantKeyword = 'merchant:' . strtolower($merchantName);
-        
+        $merchantKeyword = 'merchant:'.strtolower($merchantName);
+
         $learning = CategoryLearning::firstOrNew([
             'user_id' => $user->id,
             'keyword' => $merchantKeyword,
-            'category_id' => $categoryId
+            'category_id' => $categoryId,
         ]);
 
         if ($learning->exists) {
@@ -153,27 +152,27 @@ class CategoryLearningService
         // Convert to lowercase and remove special characters
         $text = strtolower($description);
         $text = preg_replace('/[^\w\s\-]/u', ' ', $text);
-        
+
         // Split into words
         $words = preg_split('/\s+/', $text, -1, PREG_SPLIT_NO_EMPTY);
-        
+
         // Remove stop words
         $stopWords = $this->getStopWords();
-        $keywords = array_filter($words, function($word) use ($stopWords) {
-            return strlen($word) >= 3 && !in_array($word, $stopWords);
+        $keywords = array_filter($words, function ($word) use ($stopWords) {
+            return strlen($word) >= 3 && ! in_array($word, $stopWords);
         });
-        
+
         // Also extract bigrams (two-word combinations) for better context
         $bigrams = [];
         for ($i = 0; $i < count($words) - 1; $i++) {
-            if (!in_array($words[$i], $stopWords) && !in_array($words[$i + 1], $stopWords)) {
-                $bigram = $words[$i] . ' ' . $words[$i + 1];
+            if (! in_array($words[$i], $stopWords) && ! in_array($words[$i + 1], $stopWords)) {
+                $bigram = $words[$i].' '.$words[$i + 1];
                 if (strlen($bigram) >= 5) {
                     $bigrams[] = $bigram;
                 }
             }
         }
-        
+
         return array_unique(array_merge(array_values($keywords), $bigrams));
     }
 
@@ -187,17 +186,17 @@ class CategoryLearningService
             '/(?:en|at|@)\s+([A-Z][a-zA-Z\s&\']+)/i',
             '/([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/u',
         ];
-        
+
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $description, $matches)) {
                 $merchant = trim($matches[1]);
                 // Validate it looks like a merchant name
-                if (strlen($merchant) >= 3 && !is_numeric($merchant)) {
+                if (strlen($merchant) >= 3 && ! is_numeric($merchant)) {
                     return $merchant;
                 }
             }
         }
-        
+
         return null;
     }
 
@@ -221,7 +220,7 @@ class CategoryLearningService
             'nuestro', 'tan', 'donde', 'ahora', 'parte', 'después', 'vida',
             'quedar', 'siempre', 'creer', 'hablar', 'llevar', 'dejar', 'nada',
             'cada', 'seguir', 'menos', 'nuevo', 'encontrar',
-            
+
             // English
             'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have',
             'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you',
@@ -234,10 +233,10 @@ class CategoryLearningService
             'could', 'them', 'see', 'other', 'than', 'then', 'now',
             'look', 'only', 'come', 'its', 'over', 'think', 'also',
             'back', 'after', 'use', 'two', 'how', 'our', 'work',
-            
+
             // Common expense words to exclude
             'pesos', 'peso', 'dollar', 'dollars', 'usd', 'mxn', 'eur',
-            'gaste', 'spent', 'pague', 'paid', 'compre', 'bought'
+            'gaste', 'spent', 'pague', 'paid', 'compre', 'bought',
         ];
     }
 
@@ -250,7 +249,7 @@ class CategoryLearningService
         CategoryLearning::where('last_used_at', '<', now()->subDays($daysOld))
             ->where('confidence_weight', '>', 0.5)
             ->update([
-                'confidence_weight' => DB::raw('confidence_weight * 0.9')
+                'confidence_weight' => DB::raw('confidence_weight * 0.9'),
             ]);
     }
 
@@ -265,7 +264,7 @@ class CategoryLearningService
             ->selectRaw('SUM(usage_count) as total_usage')
             ->selectRaw('AVG(confidence_weight) as avg_confidence')
             ->first();
-        
+
         return [
             'unique_keywords' => $stats->unique_keywords ?? 0,
             'categories_learned' => $stats->categories_learned ?? 0,

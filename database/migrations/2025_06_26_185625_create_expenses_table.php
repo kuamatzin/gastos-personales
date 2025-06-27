@@ -27,7 +27,7 @@ return new class extends Migration
             $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
             $table->string('merchant_name')->nullable();
             $table->timestamps();
-            
+
             $table->index(['user_id', 'expense_date']);
             $table->index(['category_id', 'expense_date']);
             $table->index('category_confidence');

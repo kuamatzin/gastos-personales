@@ -2,76 +2,40 @@
 
 namespace App\Telegram\Commands;
 
-use App\Telegram\CommandRouter;
-
 class HelpCommand extends Command
 {
     protected string $name = 'help';
-    
+
     public function handle(array $message, string $params = ''): void
     {
         try {
             $this->sendTyping();
-            
+
             // If specific command help requested
-            if (!empty($params)) {
+            if (! empty($params)) {
                 $this->showCommandHelp($params);
+
                 return;
             }
-            
-            // Show general help
-            $helpMessage = "📚 *ExpenseBot Commands*\n\n";
-            $helpMessage .= "*Basic Usage:*\n";
-            $helpMessage .= "• Send text: `50 coffee at starbucks`\n";
-            $helpMessage .= "• Send voice note with expense details\n";
-            $helpMessage .= "• Send photo of receipt\n\n";
-            
-            $helpMessage .= "*📊 Expense Commands:*\n";
-            $helpMessage .= "/expenses\\_today - Today's expenses\n";
-            $helpMessage .= "/expenses\\_week - This week's expenses\n";
-            $helpMessage .= "/expenses\\_month - This month's expenses\n\n";
-            
-            $helpMessage .= "*📈 Analytics Commands:*\n";
-            $helpMessage .= "/category\\_spending - Spending by category\n";
-            $helpMessage .= "/top\\_categories - Top spending categories\n";
-            $helpMessage .= "/stats - Statistics and insights\n\n";
-            
-            $helpMessage .= "*📤 Other Commands:*\n";
-            $helpMessage .= "/export - Export expenses to file\n";
-            $helpMessage .= "/help - Show this help\n";
-            $helpMessage .= "/cancel - Cancel current operation\n\n";
-            
-            $helpMessage .= "*💡 Tips:*\n";
-            $helpMessage .= "• Use natural language for expenses\n";
-            $helpMessage .= "• Include merchant names for better categorization\n";
-            $helpMessage .= "• Voice notes work in Spanish and English\n\n";
-            
-            $helpMessage .= "Type `/help <command>` for detailed help on any command.";
-            
-            // Try with Markdown first, fallback to plain text if it fails
-            try {
-                $this->reply($helpMessage, ['parse_mode' => 'Markdown']);
-            } catch (\Exception $mdError) {
-                $this->logError('Markdown parsing failed, sending plain text', ['error' => $mdError->getMessage()]);
-                
-                // Send without markdown
-                $plainMessage = str_replace(['*', '`', '_'], '', $helpMessage);
-                $this->reply($plainMessage);
-            }
-            
+
+            // Show general help using localization
+            $helpMessage = $this->trans('telegram.help');
+
+            $this->replyWithMarkdown($helpMessage);
+
             $this->logExecution('general_help');
-            
+
         } catch (\Exception $e) {
             $this->logError('Help command failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Send a simple fallback message
-            $this->reply("📚 ExpenseBot Help\n\nSend expenses as text, voice, or photo.\n\nCommands:\n/help - This help\n/expenses_today - Today's expenses\n/expenses_month - Month's expenses");
+            $this->reply($this->trans('telegram.error_processing'));
         }
     }
-    
+
     /**
      * Show help for specific command
      */
@@ -79,19 +43,19 @@ class HelpCommand extends Command
     {
         // Remove leading slash if present
         $command = ltrim($command, '/');
-        
+
         $helpTexts = [
             'expenses_today' => [
                 'title' => '📊 Today\'s Expenses',
                 'description' => 'Shows all expenses recorded today with totals by category.',
                 'usage' => [
                     '/expenses_today - Show today\'s expenses',
-                    '/hoy - Spanish alias'
+                    '/hoy - Spanish alias',
                 ],
                 'examples' => [
                     '/expenses_today',
-                    '/today'
-                ]
+                    '/today',
+                ],
             ],
             'expenses_month' => [
                 'title' => '📅 Monthly Expenses',
@@ -99,90 +63,90 @@ class HelpCommand extends Command
                 'usage' => [
                     '/expenses_month - Current month',
                     '/expenses_month <month> - Specific month',
-                    '/mes - Spanish alias'
+                    '/mes - Spanish alias',
                 ],
                 'examples' => [
                     '/expenses_month',
                     '/expenses_month january',
                     '/expenses_month enero',
-                    '/mes marzo'
-                ]
+                    '/mes marzo',
+                ],
             ],
             'category_spending' => [
                 'title' => '🏷️ Category Spending',
                 'description' => 'Shows detailed spending breakdown by category with subcategories.',
                 'usage' => [
                     '/category_spending - All categories',
-                    '/category_spending <category> - Specific category details'
+                    '/category_spending <category> - Specific category details',
                 ],
                 'examples' => [
                     '/category_spending',
                     '/category_spending food',
-                    '/categorias comida'
-                ]
+                    '/categorias comida',
+                ],
             ],
             'stats' => [
                 'title' => '📈 Statistics',
                 'description' => 'Shows spending trends, insights, and records.',
                 'usage' => [
                     '/stats - General statistics',
-                    '/stats <period> - Statistics for specific period'
+                    '/stats <period> - Statistics for specific period',
                 ],
                 'examples' => [
                     '/stats',
                     '/stats week',
-                    '/estadisticas'
-                ]
+                    '/estadisticas',
+                ],
             ],
             'export' => [
                 'title' => '📤 Export Expenses',
                 'description' => 'Export your expenses to Excel, PDF, or CSV format.',
                 'usage' => [
                     '/export - Show export options',
-                    '/export <format> <period> - Direct export'
+                    '/export <format> <period> - Direct export',
                 ],
                 'examples' => [
                     '/export',
                     '/export excel month',
-                    '/export csv today'
-                ]
-            ]
+                    '/export csv today',
+                ],
+            ],
         ];
-        
+
         $commandKey = str_replace('/', '', strtolower($command));
-        
+
         if (isset($helpTexts[$commandKey])) {
             $help = $helpTexts[$commandKey];
-            
+
             $message = "*{$help['title']}*\n\n";
             $message .= "{$help['description']}\n\n";
-            
+
             $message .= "*Usage:*\n";
             foreach ($help['usage'] as $usage) {
                 $message .= "• `{$usage}`\n";
             }
             $message .= "\n";
-            
+
             $message .= "*Examples:*\n";
             foreach ($help['examples'] as $example) {
                 $message .= "• `{$example}`\n";
             }
-            
+
             // Try with Markdown first, fallback to plain text if it fails
             try {
                 $this->reply($message, ['parse_mode' => 'Markdown']);
             } catch (\Exception $e) {
                 $this->logError('Markdown parsing failed for command help', ['error' => $e->getMessage()]);
-                
+
                 // Send without markdown
                 $plainMessage = str_replace(['*', '`', '_'], '', $message);
                 $this->reply($plainMessage);
             }
-            
+
         } else {
             $this->reply("❓ Unknown command: /{$command}\n\nType /help to see available commands.");
         }
-        
+
         $this->logExecution('command_help', ['command' => $command]);
     }
 }

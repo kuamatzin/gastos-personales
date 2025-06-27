@@ -3,16 +3,20 @@
 namespace App\Services;
 
 use App\Models\Category;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 class OpenAIService
 {
     private string $apiKey;
+
     private string $model;
+
     private int $maxTokens;
+
     private float $temperature;
+
     private string $apiUrl = 'https://api.openai.com/v1/chat/completions';
 
     public function __construct()
@@ -29,12 +33,12 @@ class OpenAIService
     public function extractExpenseData(string $text): array
     {
         $categories = $this->getCategoryList();
-        
+
         $prompt = "Extract expense information from the following text and return ONLY valid JSON:
 
 Text: {$text}
 
-Available categories: " . implode(', ', $categories) . "
+Available categories: ".implode(', ', $categories)."
 
 Expected format:
 {
@@ -48,25 +52,25 @@ Expected format:
 }
 
 Rules:
-- If no date is mentioned, use today's date: " . date('Y-m-d') . "
+- If no date is mentioned, use today's date: ".date('Y-m-d').'
 - Choose the most appropriate category from the list
 - Extract merchant name if clearly identifiable
 - Amount must be numeric without currency symbols
 - Default currency is MXN
 - category_confidence should reflect how certain you are about the category (0.0-1.0)
 - Description should be clear and concise
-- Consider Mexican context (common stores, services, etc.)";
+- Consider Mexican context (common stores, services, etc.)';
 
         try {
             $response = $this->makeApiCall($prompt);
             $data = $this->parseJsonResponse($response);
-            
+
             // Validate and normalize the response
             return $this->normalizeExpenseData($data);
         } catch (\Exception $e) {
             Log::error('OpenAI extractExpenseData failed', [
                 'error' => $e->getMessage(),
-                'text' => $text
+                'text' => $text,
             ]);
             throw $e;
         }
@@ -78,48 +82,49 @@ Rules:
     public function inferCategory(string $description, ?float $amount = null): array
     {
         $categories = $this->getCategoryList();
-        $amountContext = $amount ? " Amount: $amount MXN." : "";
+        $amountContext = $amount ? " Amount: $amount MXN." : '';
 
         $prompt = "Analyze this expense description and infer the most appropriate category:
 
 Description: {$description}{$amountContext}
 
-Available categories: " . implode(', ', $categories) . "
+Available categories: ".implode(', ', $categories).'
 
 Return ONLY valid JSON:
 {
-    \"category_slug\": \"most_appropriate_category\",
-    \"confidence\": 0.95,
-    \"reasoning\": \"brief explanation\"
+    "category_slug": "most_appropriate_category",
+    "confidence": 0.95,
+    "reasoning": "brief explanation"
 }
 
-Consider Mexican context and common spending patterns. Categories should match exactly from the available list.";
+Consider Mexican context and common spending patterns. Categories should match exactly from the available list.';
 
         try {
             $response = $this->makeApiCall($prompt);
             $result = $this->parseJsonResponse($response);
-            
+
             // Find category ID by slug
             $category = Category::where('slug', $result['category_slug'] ?? '')->first();
-            
+
             return [
                 'category_id' => $category?->id,
                 'confidence' => $result['confidence'] ?? 0.5,
-                'reasoning' => $result['reasoning'] ?? ''
+                'reasoning' => $result['reasoning'] ?? '',
             ];
         } catch (\Exception $e) {
             Log::error('OpenAI inferCategory failed', [
                 'error' => $e->getMessage(),
                 'description' => $description,
-                'amount' => $amount
+                'amount' => $amount,
             ]);
-            
+
             // Return default category on error
             $defaultCategory = Category::where('slug', 'uncategorized')->first();
+
             return [
                 'category_id' => $defaultCategory?->id,
                 'confidence' => 0.0,
-                'reasoning' => 'Failed to infer category'
+                'reasoning' => 'Failed to infer category',
             ];
         }
     }
@@ -160,21 +165,21 @@ Rules:
         try {
             $response = $this->makeApiCall($prompt);
             $data = $this->parseJsonResponse($response);
-            
+
             // Convert to expense format
             return [
                 'amount' => $data['total'] ?? $data['amount'] ?? 0,
-                'description' => $data['description'] ?? 'Receipt from ' . ($data['merchant_name'] ?? 'Unknown'),
+                'description' => $data['description'] ?? 'Receipt from '.($data['merchant_name'] ?? 'Unknown'),
                 'merchant_name' => $data['merchant_name'] ?? null,
                 'date' => $data['date'] ?? date('Y-m-d'),
                 'confidence' => $data['confidence'] ?? 0.7,
                 'items' => $data['items'] ?? [],
-                'tax' => $data['tax'] ?? null
+                'tax' => $data['tax'] ?? null,
             ];
         } catch (\Exception $e) {
             Log::error('OpenAI processImageText failed', [
                 'error' => $e->getMessage(),
-                'ocr_text_length' => strlen($ocrText)
+                'ocr_text_length' => strlen($ocrText),
             ]);
             throw $e;
         }
@@ -203,20 +208,20 @@ Expected format:
 Rules:
 - Handle informal speech patterns
 - Extract numbers spoken in Spanish or English (e.g., 'doscientos pesos' = 200)
-- Default date is today: " . date('Y-m-d') . "
+- Default date is today: ".date('Y-m-d').'
 - Consider Mexican colloquialisms
 - Default currency is MXN
-- Be flexible with grammar and word order";
+- Be flexible with grammar and word order';
 
         try {
             $response = $this->makeApiCall($prompt);
             $data = $this->parseJsonResponse($response);
-            
+
             return $this->normalizeExpenseData($data);
         } catch (\Exception $e) {
             Log::error('OpenAI processVoiceTranscription failed', [
                 'error' => $e->getMessage(),
-                'transcription' => $transcription
+                'transcription' => $transcription,
             ]);
             throw $e;
         }
@@ -230,7 +235,7 @@ Rules:
         $response = Http::timeout(30)
             ->retry(3, 100)
             ->withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Authorization' => 'Bearer '.$this->apiKey,
                 'Content-Type' => 'application/json',
             ])
             ->post($this->apiUrl, [
@@ -238,19 +243,19 @@ Rules:
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'You are a helpful assistant that extracts structured data from text. Always respond with valid JSON only, no additional text.'
+                        'content' => 'You are a helpful assistant that extracts structured data from text. Always respond with valid JSON only, no additional text.',
                     ],
                     [
                         'role' => 'user',
-                        'content' => $prompt
-                    ]
+                        'content' => $prompt,
+                    ],
                 ],
                 'max_tokens' => $this->maxTokens,
-                'temperature' => $this->temperature
+                'temperature' => $this->temperature,
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception('OpenAI API request failed: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('OpenAI API request failed: '.$response->body());
         }
 
         return $response->json();
@@ -262,20 +267,20 @@ Rules:
     private function parseJsonResponse(array $response): array
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
-        
+
         // Try to extract JSON from the response
         $jsonStart = strpos($content, '{');
         $jsonEnd = strrpos($content, '}');
-        
+
         if ($jsonStart !== false && $jsonEnd !== false) {
             $jsonString = substr($content, $jsonStart, $jsonEnd - $jsonStart + 1);
             $data = json_decode($jsonString, true);
-            
+
             if (json_last_error() === JSON_ERROR_NONE) {
                 return $data;
             }
         }
-        
+
         throw new \Exception('Failed to parse JSON from OpenAI response');
     }
 
@@ -320,13 +325,13 @@ Rules:
 
         // Sanitize the data
         $normalized = ExpenseDataValidator::sanitize($normalized);
-        
+
         // Validate the data
         $errors = ExpenseDataValidator::validate($normalized);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             Log::warning('OpenAI data validation errors', [
                 'errors' => $errors,
-                'data' => $normalized
+                'data' => $normalized,
             ]);
         }
 
