@@ -20,6 +20,10 @@ class SpeechToTextService
             'encoding' => AudioEncoding::OGG_OPUS,
             'sampleRate' => 48000
         ],
+        'oga' => [  // Telegram sometimes uses .oga extension
+            'encoding' => AudioEncoding::OGG_OPUS,
+            'sampleRate' => 48000
+        ],
         'mp3' => [
             'encoding' => AudioEncoding::MP3,
             'sampleRate' => 48000

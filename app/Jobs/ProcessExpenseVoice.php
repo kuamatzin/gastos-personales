@@ -43,8 +43,8 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
             // Step 1: Download voice file from Telegram
             $this->tempFile = $this->downloadTelegramFile($this->fileId);
             
-            // Step 2: Transcribe voice to text
-            $transcriptionResult = $speechService->transcribeAudio($this->tempFile);
+            // Step 2: Transcribe voice to text (Telegram sends OGG files)
+            $transcriptionResult = $speechService->processTelegramAudio($this->tempFile);
             $transcription = $transcriptionResult['text'] ?? '';
             
             if (empty($transcription)) {
