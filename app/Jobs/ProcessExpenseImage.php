@@ -44,7 +44,8 @@ class ProcessExpenseImage extends BaseExpenseProcessor
             $this->tempFile = $this->downloadTelegramFile($this->fileId);
             
             // Step 2: Extract text from image using OCR
-            $extractedText = $ocrService->extractText($this->tempFile);
+            $ocrResult = $ocrService->extractTextFromImage($this->tempFile);
+            $extractedText = $ocrResult['text'] ?? '';
             
             if (empty($extractedText)) {
                 throw new \Exception('OCR returned no text from image');
