@@ -159,21 +159,38 @@ class TelegramService
         $category = \App\Models\Category::find($expenseData['category_id']);
         $confidence = round($expenseData['category_confidence'] * 100);
 
-        $message = "💰 *Expense detected!*\n\n";
-        $message .= '💵 *Amount:* $'.number_format($expenseData['amount'], 2).' '.$expenseData['currency']."\n";
-        $message .= '📝 *Description:* '.$expenseData['description']."\n";
-        $message .= '📅 *Date:* '.$expenseData['date']."\n";
-        $message .= '🏷️ *Category:* '.($category->icon ?? '📋').' '.$category->name;
+        $message = trans('telegram.expense_detected', [], $userLanguage)."\n\n";
+        $message .= trans('telegram.expense_amount', [
+            'amount' => number_format($expenseData['amount'], 2),
+            'currency' => $expenseData['currency'],
+        ], $userLanguage)."\n";
+        $message .= trans('telegram.expense_description', [
+            'description' => $expenseData['description'],
+        ], $userLanguage)."\n";
+        $message .= trans('telegram.expense_date', [
+            'date' => $expenseData['date'],
+        ], $userLanguage)."\n";
 
         if ($expenseData['category_confidence'] < 0.9) {
-            $message .= " *(Confidence: {$confidence}%)*";
+            $message .= trans('telegram.expense_category_confidence', [
+                'icon' => $category->icon ?? '📋',
+                'category' => $category->name,
+                'confidence' => $confidence,
+            ], $userLanguage);
+        } else {
+            $message .= trans('telegram.expense_category', [
+                'icon' => $category->icon ?? '📋',
+                'category' => $category->name,
+            ], $userLanguage);
         }
 
         if (isset($expenseData['merchant_name'])) {
-            $message .= "\n🏪 *Merchant:* ".$expenseData['merchant_name'];
+            $message .= "\n".trans('telegram.expense_merchant', [
+                'merchant' => $expenseData['merchant_name'],
+            ], $userLanguage);
         }
 
-        $message .= "\n\nIs this correct?";
+        $message .= "\n\n".trans('telegram.expense_confirm_question', [], $userLanguage);
 
         $keyboard = [
             [
