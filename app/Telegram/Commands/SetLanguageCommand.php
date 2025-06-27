@@ -2,19 +2,11 @@
 
 namespace App\Telegram\Commands;
 
-use App\Models\User;
-use App\Services\TelegramService;
-
 class SetLanguageCommand extends Command
 {
-    protected TelegramService $telegram;
+    protected string $name = 'language';
 
-    public function __construct(TelegramService $telegram)
-    {
-        $this->telegram = $telegram;
-    }
-
-    public function handle(array $message, User $user): void
+    public function handle(array $message, string $params = ''): void
     {
         $chatId = $message['chat']['id'];
 
@@ -29,8 +21,8 @@ class SetLanguageCommand extends Command
 
         $this->telegram->sendMessage(
             $chatId,
-            trans('telegram.language_selection', [], $user->language),
-            $keyboard
+            $this->trans('telegram.language_selection'),
+            ['reply_markup' => $keyboard]
         );
     }
 }
