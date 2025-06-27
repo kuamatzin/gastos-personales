@@ -180,14 +180,56 @@ class TelegramWebhookController extends Controller
 
     private function processVoiceExpense(string $chatId, string $userId, array $voice, int $messageId)
     {
-        $this->telegram->sendMessage($chatId, "🎤 Voice processing will be implemented soon!");
-        // TODO: Implement voice processing
+        Log::info('Processing voice expense', ['chatId' => $chatId, 'userId' => $userId, 'voice' => $voice]);
+        
+        $fileId = $voice['file_id'];
+        
+        // Send processing message
+        $processingMessage = $this->telegram->sendMessage($chatId, "🎤 Processing voice message...");
+        Log::info('Processing message sent', ['result' => $processingMessage]);
+
+        // Queue the job
+        try {
+            \App\Jobs\ProcessExpenseVoice::dispatch($userId, $fileId, $messageId)
+                ->onQueue('high');
+            Log::info('Voice processing job dispatched successfully', ['file_id' => $fileId]);
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch voice processing job', ['error' => $e->getMessage()]);
+            $this->telegram->sendMessage($chatId, "❌ Failed to process voice message. Please try again.");
+        }
+
+        // Delete processing message after a delay
+        \App\Jobs\ProcessExpenseText::dispatch($userId, 'delete_message', $processingMessage['result']['message_id'])
+            ->delay(now()->addSeconds(2))
+            ->onQueue('low');
     }
 
     private function processPhotoExpense(string $chatId, string $userId, array $photos, int $messageId)
     {
-        $this->telegram->sendMessage($chatId, "📷 Photo processing will be implemented soon!");
-        // TODO: Implement photo processing
+        Log::info('Processing photo expense', ['chatId' => $chatId, 'userId' => $userId, 'photos' => count($photos)]);
+        
+        // Get the largest photo (Telegram sends multiple sizes)
+        $largestPhoto = end($photos);
+        $fileId = $largestPhoto['file_id'];
+        
+        // Send processing message
+        $processingMessage = $this->telegram->sendMessage($chatId, "📷 Processing receipt image...");
+        Log::info('Processing message sent', ['result' => $processingMessage]);
+
+        // Queue the job
+        try {
+            \App\Jobs\ProcessExpenseImage::dispatch($userId, $fileId, $messageId)
+                ->onQueue('high');
+            Log::info('Photo processing job dispatched successfully', ['file_id' => $fileId]);
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch photo processing job', ['error' => $e->getMessage()]);
+            $this->telegram->sendMessage($chatId, "❌ Failed to process image. Please try again.");
+        }
+
+        // Delete processing message after a delay
+        \App\Jobs\ProcessExpenseText::dispatch($userId, 'delete_message', $processingMessage['result']['message_id'])
+            ->delay(now()->addSeconds(2))
+            ->onQueue('low');
     }
 
     private function confirmExpense(string $chatId, int $messageId, string $expenseId, string $userId)
