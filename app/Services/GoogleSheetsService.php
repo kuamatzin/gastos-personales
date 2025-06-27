@@ -172,6 +172,14 @@ class GoogleSheetsService
         }
         
         try {
+            // Check if expense already exists in the sheet
+            if ($this->expenseExistsInSheet($expense->id)) {
+                Log::info('Expense already exists in Google Sheets, skipping', [
+                    'expense_id' => $expense->id
+                ]);
+                return;
+            }
+            
             $values = [[
                 $expense->expense_date->format('Y-m-d'),
                 $expense->amount,
@@ -494,6 +502,41 @@ class GoogleSheetsService
     private function isInitialized(): bool
     {
         return $this->client !== null && $this->service !== null;
+    }
+    
+    /**
+     * Check if expense already exists in the sheet
+     */
+    private function expenseExistsInSheet(int $expenseId): bool
+    {
+        try {
+            // Get all expense IDs from column I (ID column)
+            $range = self::SHEET_EXPENSES . '!I2:I';
+            $response = $this->service->spreadsheets_values->get(
+                $this->spreadsheetId,
+                $range
+            );
+            
+            $values = $response->getValues();
+            
+            if (!empty($values)) {
+                foreach ($values as $row) {
+                    if (isset($row[0]) && $row[0] == $expenseId) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            // If we can't check, assume it doesn't exist to avoid blocking
+            Log::warning('Failed to check if expense exists in sheet', [
+                'expense_id' => $expenseId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
     
     /**
