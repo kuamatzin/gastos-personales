@@ -64,30 +64,34 @@ class CategorySpendingCommand extends Command
             $parentCategory = $expense->category->parent ?? $expense->category;
             $subcategory = $expense->category->parent ? $expense->category : null;
 
-            $parentName = $parentCategory->name;
+            $parentName = $parentCategory->getTranslatedName($this->user->language);
+            $parentId = $parentCategory->id;
 
-            if (! isset($categoryData[$parentName])) {
-                $categoryData[$parentName] = [
+            if (! isset($categoryData[$parentId])) {
+                $categoryData[$parentId] = [
+                    'name' => $parentName,
                     'total' => 0,
                     'subcategories' => [],
                     'count' => 0,
                 ];
             }
 
-            $categoryData[$parentName]['total'] += $expense->amount;
-            $categoryData[$parentName]['count']++;
+            $categoryData[$parentId]['total'] += $expense->amount;
+            $categoryData[$parentId]['count']++;
             $grandTotal += $expense->amount;
 
             if ($subcategory) {
-                $subName = $subcategory->name;
-                if (! isset($categoryData[$parentName]['subcategories'][$subName])) {
-                    $categoryData[$parentName]['subcategories'][$subName] = [
+                $subName = $subcategory->getTranslatedName($this->user->language);
+                $subId = $subcategory->id;
+                if (! isset($categoryData[$parentId]['subcategories'][$subId])) {
+                    $categoryData[$parentId]['subcategories'][$subId] = [
+                        'name' => $subName,
                         'total' => 0,
                         'count' => 0,
                     ];
                 }
-                $categoryData[$parentName]['subcategories'][$subName]['total'] += $expense->amount;
-                $categoryData[$parentName]['subcategories'][$subName]['count']++;
+                $categoryData[$parentId]['subcategories'][$subId]['total'] += $expense->amount;
+                $categoryData[$parentId]['subcategories'][$subId]['count']++;
             }
         }
 
@@ -103,7 +107,8 @@ class CategorySpendingCommand extends Command
             'period' => $periodText,
         ]);
 
-        foreach ($categoryData as $categoryName => $data) {
+        foreach ($categoryData as $categoryId => $data) {
+            $categoryName = $data['name'];
             $emoji = $this->getCategoryEmoji($categoryName);
             $percentage = ($data['total'] / $grandTotal) * 100;
 
@@ -113,10 +118,13 @@ class CategorySpendingCommand extends Command
 
             // Show top subcategories if any
             if (! empty($data['subcategories'])) {
-                arsort($data['subcategories']);
+                uasort($data['subcategories'], function($a, $b) {
+                    return $b['total'] <=> $a['total'];
+                });
                 $topSubs = array_slice($data['subcategories'], 0, 3, true);
 
-                foreach ($topSubs as $subName => $subData) {
+                foreach ($topSubs as $subId => $subData) {
+                    $subName = $subData['name'];
                     $escapedSubName = $this->escapeMarkdown($subName);
                     $message .= "  └ {$escapedSubName}: ".$this->formatMoney($subData['total'])."\n";
                 }
@@ -144,11 +152,12 @@ class CategorySpendingCommand extends Command
         $row = [];
         $count = 0;
 
-        foreach (array_keys($categoryData) as $categoryName) {
+        foreach ($categoryData as $categoryId => $data) {
+            $categoryName = $data['name'];
             $emoji = $this->getCategoryEmoji($categoryName);
             $row[] = [
                 'text' => $emoji.' '.$categoryName,
-                'callback_data' => 'category_detail_'.strtolower($categoryName),
+                'callback_data' => 'category_detail_'.$categoryId,
             ];
 
             $count++;

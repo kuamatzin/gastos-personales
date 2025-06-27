@@ -174,13 +174,13 @@ class TelegramService
         if ($expenseData['category_confidence'] < 0.9) {
             $message .= trans('telegram.expense_category_confidence', [
                 'icon' => $category->icon ?? '📋',
-                'category' => $category->name,
+                'category' => $category->getTranslatedName($userLanguage),
                 'confidence' => $confidence,
             ], $userLanguage);
         } else {
             $message .= trans('telegram.expense_category', [
                 'icon' => $category->icon ?? '📋',
-                'category' => $category->name,
+                'category' => $category->getTranslatedName($userLanguage),
             ], $userLanguage);
         }
 
@@ -218,7 +218,7 @@ class TelegramService
             $row = [];
             foreach ($chunk as $category) {
                 $icon = $category->icon ?? '📋';
-                $text = $icon.' '.$category->name;
+                $text = $icon.' '.$category->getTranslatedName($userLanguage);
 
                 if ($category->id == $currentCategoryId) {
                     $text = '✅ '.$text;

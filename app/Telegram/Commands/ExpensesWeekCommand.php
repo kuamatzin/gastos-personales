@@ -39,7 +39,8 @@ class ExpensesWeekCommand extends Command
 
             foreach ($expenses as $expense) {
                 $day = $expense->expense_date->format('Y-m-d');
-                $categoryName = $expense->category->parent->name ?? $expense->category->name;
+                $category = $expense->category->parent ?? $expense->category;
+                $categoryName = $category->getTranslatedName($this->user->language);
 
                 // Daily totals
                 if (! isset($dailyTotals[$day])) {

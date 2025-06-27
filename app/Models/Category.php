@@ -11,6 +11,7 @@ class Category extends Model
     protected $fillable = [
         'name',
         'slug',
+        'translation_key',
         'parent_id',
         'color',
         'icon',
@@ -47,5 +48,14 @@ class Category extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function getTranslatedName(?string $locale = null): string
+    {
+        if (!$this->translation_key) {
+            return $this->name;
+        }
+
+        return trans("telegram.categories.{$this->translation_key}", [], $locale) ?: $this->name;
     }
 }

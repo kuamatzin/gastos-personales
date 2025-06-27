@@ -155,7 +155,8 @@ class ExpensesMonthCommand extends Command
         $totals = [];
 
         foreach ($expenses as $expense) {
-            $categoryName = $expense->category->parent->name ?? $expense->category->name;
+            $category = $expense->category->parent ?? $expense->category;
+            $categoryName = $category->getTranslatedName($this->user ? $this->user->language : 'es');
 
             if (! isset($totals[$categoryName])) {
                 $totals[$categoryName] = 0;

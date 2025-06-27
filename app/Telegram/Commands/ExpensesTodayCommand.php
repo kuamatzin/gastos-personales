@@ -34,7 +34,8 @@ class ExpensesTodayCommand extends Command
             $grandTotal = 0;
 
             foreach ($expenses as $expense) {
-                $categoryName = $expense->category->parent->name ?? $expense->category->name;
+                $category = $expense->category->parent ?? $expense->category;
+                $categoryName = $category->getTranslatedName($this->user->language);
 
                 if (! isset($categoryTotals[$categoryName])) {
                     $categoryTotals[$categoryName] = 0;
