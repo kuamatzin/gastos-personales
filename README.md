@@ -1,3 +1,5 @@
+[![Laravel Forge Site Deployment Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fforge.laravel.com%2Fsite-badges%2Fb0cd3061-52d6-4d57-855d-41124d02f3a8%3Fdate%3D1%26label%3D1%26commit%3D1&style=for-the-badge)](https://forge.laravel.com/servers/628807/sites/2764168)
+
 # ExpenseBot - Personal Expense Tracker with Telegram Integration
 
 A Laravel-based expense tracking system that uses AI to automatically categorize expenses through a Telegram bot interface. Users can submit expenses via text, voice notes, or receipt photos.
