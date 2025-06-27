@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessExpenseText;
 use App\Models\User;
+use App\Models\Expense;
 use App\Services\TelegramService;
+use App\Services\CategoryLearningService;
 use App\Telegram\CommandRouter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -96,20 +98,27 @@ class TelegramWebhookController extends Controller
         $messageId = $callbackQuery['message']['message_id'];
         $data = $callbackQuery['data'];
         $callbackId = $callbackQuery['id'];
+        $userId = $callbackQuery['from']['id'];
 
         // Answer the callback to remove loading state
         $this->telegram->answerCallbackQuery($callbackId);
 
         // Handle different callback data
-        if ($data === 'confirm_expense') {
-            $this->confirmExpense($chatId, $messageId);
-        } elseif ($data === 'cancel_expense') {
-            $this->cancelExpense($chatId, $messageId);
+        if (str_starts_with($data, 'confirm_expense_')) {
+            $expenseId = str_replace('confirm_expense_', '', $data);
+            $this->confirmExpense($chatId, $messageId, $expenseId, $userId);
+        } elseif (str_starts_with($data, 'cancel_expense_')) {
+            $expenseId = str_replace('cancel_expense_', '', $data);
+            $this->cancelExpense($chatId, $messageId, $expenseId, $userId);
         } elseif (str_starts_with($data, 'select_category_')) {
             $categoryId = str_replace('select_category_', '', $data);
             $this->selectCategory($chatId, $messageId, $categoryId);
-        } elseif ($data === 'edit_category') {
-            $this->editCategory($chatId, $messageId);
+        } elseif (str_starts_with($data, 'edit_category_')) {
+            $expenseId = str_replace('edit_category_', '', $data);
+            $this->editCategory($chatId, $messageId, $expenseId);
+        } elseif (str_starts_with($data, 'edit_description_')) {
+            $expenseId = str_replace('edit_description_', '', $data);
+            $this->editDescription($chatId, $messageId, $expenseId);
         }
         // Add more callback handlers as needed
     }
@@ -169,15 +178,96 @@ class TelegramWebhookController extends Controller
         // TODO: Implement photo processing
     }
 
-    private function confirmExpense(string $chatId, int $messageId)
+    private function confirmExpense(string $chatId, int $messageId, string $expenseId, string $userId)
     {
-        // TODO: Implement expense confirmation
-        $this->telegram->editMessage($chatId, $messageId, "✅ Expense confirmed and saved!");
+        try {
+            // Find the expense
+            $expense = \App\Models\Expense::where('id', $expenseId)
+                ->where('user_id', function($query) use ($userId) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('telegram_id', $userId)
+                        ->limit(1);
+                })
+                ->where('status', 'pending')
+                ->first();
+
+            if (!$expense) {
+                $this->telegram->editMessage($chatId, $messageId, "❌ Expense not found or already processed.");
+                return;
+            }
+
+            // Update expense status to confirmed
+            $expense->status = 'confirmed';
+            $expense->save();
+
+            // If user selected a different category than suggested, learn from it
+            if ($expense->category_id != $expense->suggested_category_id) {
+                $learningService = new \App\Services\CategoryLearningService();
+                $learningService->learn(
+                    $expense->user_id,
+                    $expense->description,
+                    $expense->category_id,
+                    $expense->amount
+                );
+            }
+
+            // TODO: Sync to Google Sheets if configured
+            // if (config('services.google_sheets.enabled')) {
+            //     \App\Jobs\SyncExpenseToGoogleSheets::dispatch($expense);
+            // }
+
+            $this->telegram->editMessage($chatId, $messageId, 
+                "✅ Expense confirmed and saved!\n\n" .
+                "💰 Amount: $" . number_format($expense->amount, 2) . "\n" .
+                "🏷️ Category: " . $expense->category->name
+            );
+
+            Log::info('Expense confirmed', [
+                'expense_id' => $expense->id,
+                'user_id' => $expense->user_id,
+                'amount' => $expense->amount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to confirm expense', [
+                'expense_id' => $expenseId,
+                'error' => $e->getMessage()
+            ]);
+            
+            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to confirm expense. Please try again.");
+        }
     }
 
-    private function cancelExpense(string $chatId, int $messageId)
+    private function cancelExpense(string $chatId, int $messageId, string $expenseId, string $userId)
     {
-        $this->telegram->editMessage($chatId, $messageId, "❌ Expense cancelled.");
+        try {
+            // Find and delete the expense
+            $expense = \App\Models\Expense::where('id', $expenseId)
+                ->where('user_id', function($query) use ($userId) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('telegram_id', $userId)
+                        ->limit(1);
+                })
+                ->where('status', 'pending')
+                ->first();
+
+            if ($expense) {
+                $expense->delete();
+                $this->telegram->editMessage($chatId, $messageId, "❌ Expense cancelled.");
+            } else {
+                $this->telegram->editMessage($chatId, $messageId, "❌ Expense not found or already processed.");
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel expense', [
+                'expense_id' => $expenseId,
+                'error' => $e->getMessage()
+            ]);
+            
+            $this->telegram->editMessage($chatId, $messageId, "❌ Failed to cancel expense.");
+        }
     }
 
     private function selectCategory(string $chatId, int $messageId, string $categoryId)
@@ -186,8 +276,14 @@ class TelegramWebhookController extends Controller
         $this->telegram->editMessage($chatId, $messageId, "✅ Category updated!");
     }
 
-    private function editCategory(string $chatId, int $messageId)
+    private function editCategory(string $chatId, int $messageId, string $expenseId)
     {
         $this->telegram->sendCategorySelection($chatId);
+    }
+
+    private function editDescription(string $chatId, int $messageId, string $expenseId)
+    {
+        // TODO: Implement description editing
+        $this->telegram->editMessage($chatId, $messageId, "📝 To edit description, please cancel and create a new expense.");
     }
 }

@@ -171,12 +171,12 @@ class TelegramService
 
         $keyboard = [
             [
-                ['text' => '✅ Confirm', 'callback_data' => 'confirm_expense'],
-                ['text' => '✏️ Edit Category', 'callback_data' => 'edit_category']
+                ['text' => '✅ Confirm', 'callback_data' => 'confirm_expense_' . $expenseData['expense_id']],
+                ['text' => '✏️ Edit Category', 'callback_data' => 'edit_category_' . $expenseData['expense_id']]
             ],
             [
-                ['text' => '📝 Edit Description', 'callback_data' => 'edit_description'],
-                ['text' => '❌ Cancel', 'callback_data' => 'cancel_expense']
+                ['text' => '📝 Edit Description', 'callback_data' => 'edit_description_' . $expenseData['expense_id']],
+                ['text' => '❌ Cancel', 'callback_data' => 'cancel_expense_' . $expenseData['expense_id']]
             ]
         ];
 
