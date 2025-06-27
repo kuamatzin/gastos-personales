@@ -10,46 +10,66 @@ class HelpCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
-        
-        // If specific command help requested
-        if (!empty($params)) {
-            $this->showCommandHelp($params);
-            return;
+        try {
+            $this->sendTyping();
+            
+            // If specific command help requested
+            if (!empty($params)) {
+                $this->showCommandHelp($params);
+                return;
+            }
+            
+            // Show general help
+            $helpMessage = "📚 *ExpenseBot Commands*\n\n";
+            $helpMessage .= "*Basic Usage:*\n";
+            $helpMessage .= "• Send text: `50 coffee at starbucks`\n";
+            $helpMessage .= "• Send voice note with expense details\n";
+            $helpMessage .= "• Send photo of receipt\n\n";
+            
+            $helpMessage .= "*📊 Expense Commands:*\n";
+            $helpMessage .= "/expenses\\_today - Today's expenses\n";
+            $helpMessage .= "/expenses\\_week - This week's expenses\n";
+            $helpMessage .= "/expenses\\_month - This month's expenses\n\n";
+            
+            $helpMessage .= "*📈 Analytics Commands:*\n";
+            $helpMessage .= "/category\\_spending - Spending by category\n";
+            $helpMessage .= "/top\\_categories - Top spending categories\n";
+            $helpMessage .= "/stats - Statistics and insights\n\n";
+            
+            $helpMessage .= "*📤 Other Commands:*\n";
+            $helpMessage .= "/export - Export expenses to file\n";
+            $helpMessage .= "/help - Show this help\n";
+            $helpMessage .= "/cancel - Cancel current operation\n\n";
+            
+            $helpMessage .= "*💡 Tips:*\n";
+            $helpMessage .= "• Use natural language for expenses\n";
+            $helpMessage .= "• Include merchant names for better categorization\n";
+            $helpMessage .= "• Voice notes work in Spanish and English\n\n";
+            
+            $helpMessage .= "Type `/help <command>` for detailed help on any command.";
+            
+            // Try with Markdown first, fallback to plain text if it fails
+            try {
+                $this->reply($helpMessage, ['parse_mode' => 'Markdown']);
+            } catch (\Exception $mdError) {
+                $this->logError('Markdown parsing failed, sending plain text', ['error' => $mdError->getMessage()]);
+                
+                // Send without markdown
+                $plainMessage = str_replace(['*', '`', '_'], '', $helpMessage);
+                $this->reply($plainMessage);
+            }
+            
+            $this->logExecution('general_help');
+            
+        } catch (\Exception $e) {
+            $this->logError('Help command failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("📚 ExpenseBot Help\n\nSend expenses as text, voice, or photo.\n\nCommands:\n/help - This help\n/expenses_today - Today's expenses\n/expenses_month - Month's expenses");
         }
-        
-        // Show general help
-        $helpMessage = "📚 *ExpenseBot Commands*\n\n";
-        $helpMessage .= "*Basic Usage:*\n";
-        $helpMessage .= "• Send text: `50 coffee at starbucks`\n";
-        $helpMessage .= "• Send voice note with expense details\n";
-        $helpMessage .= "• Send photo of receipt\n\n";
-        
-        $helpMessage .= "*📊 Expense Commands:*\n";
-        $helpMessage .= "/expenses_today - Today's expenses\n";
-        $helpMessage .= "/expenses_week - This week's expenses\n";
-        $helpMessage .= "/expenses_month - This month's expenses\n\n";
-        
-        $helpMessage .= "*📈 Analytics Commands:*\n";
-        $helpMessage .= "/category_spending - Spending by category\n";
-        $helpMessage .= "/top_categories - Top spending categories\n";
-        $helpMessage .= "/stats - Statistics and insights\n\n";
-        
-        $helpMessage .= "*📤 Other Commands:*\n";
-        $helpMessage .= "/export - Export expenses to file\n";
-        $helpMessage .= "/help - Show this help\n";
-        $helpMessage .= "/cancel - Cancel current operation\n\n";
-        
-        $helpMessage .= "*💡 Tips:*\n";
-        $helpMessage .= "• Use natural language for expenses\n";
-        $helpMessage .= "• Include merchant names for better categorization\n";
-        $helpMessage .= "• Voice notes work in Spanish and English\n\n";
-        
-        $helpMessage .= "Type `/help <command>` for detailed help on any command.";
-        
-        $this->reply($helpMessage, ['parse_mode' => 'Markdown']);
-        
-        $this->logExecution('general_help');
     }
     
     /**
@@ -148,7 +168,16 @@ class HelpCommand extends Command
                 $message .= "• `{$example}`\n";
             }
             
-            $this->reply($message, ['parse_mode' => 'Markdown']);
+            // Try with Markdown first, fallback to plain text if it fails
+            try {
+                $this->reply($message, ['parse_mode' => 'Markdown']);
+            } catch (\Exception $e) {
+                $this->logError('Markdown parsing failed for command help', ['error' => $e->getMessage()]);
+                
+                // Send without markdown
+                $plainMessage = str_replace(['*', '`', '_'], '', $message);
+                $this->reply($plainMessage);
+            }
             
         } else {
             $this->reply("❓ Unknown command: /{$command}\n\nType /help to see available commands.");

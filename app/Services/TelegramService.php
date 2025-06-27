@@ -61,18 +61,34 @@ class TelegramService
             'parse_mode' => 'Markdown',
         ], $options);
 
-        $response = Http::post("{$this->apiUrl}/sendMessage", $params);
-        
-        $result = $response->json();
-        
-        if (!$response->successful()) {
-            Log::error('Telegram sendMessage failed', [
-                'response' => $result,
-                'params' => $params,
-            ]);
-        }
+        try {
+            $response = Http::post("{$this->apiUrl}/sendMessage", $params);
+            
+            $result = $response->json();
+            
+            if (!$response->successful()) {
+                Log::error('Telegram sendMessage failed', [
+                    'status' => $response->status(),
+                    'response' => $result,
+                    'params' => $params,
+                    'text_length' => strlen($text),
+                ]);
+                
+                // Throw exception so caller can handle it
+                throw new \Exception($result['description'] ?? 'Unknown Telegram error');
+            }
 
-        return $result;
+            return $result;
+            
+        } catch (\Exception $e) {
+            Log::error('Telegram sendMessage exception', [
+                'error' => $e->getMessage(),
+                'chat_id' => $chatId,
+                'text_preview' => substr($text, 0, 100) . '...',
+            ]);
+            
+            throw $e;
+        }
     }
 
     /**

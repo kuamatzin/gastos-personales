@@ -89,7 +89,13 @@ class TelegramWebhookController extends Controller
                 (new StartCommand($this->telegram, $user))->handle($message, implode(' ', $params));
                 break;
             case '/help':
-                (new HelpCommand($this->telegram, $user))->handle($message, implode(' ', $params));
+                try {
+                    Log::info('Help command triggered', ['user_id' => $user->id, 'params' => $params]);
+                    (new HelpCommand($this->telegram, $user))->handle($message, implode(' ', $params));
+                } catch (\Exception $e) {
+                    Log::error('Help command failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                    $this->telegram->sendMessage($chatId, "❌ Sorry, there was an error showing help. Please try again.");
+                }
                 break;
             default:
                 $this->telegram->sendMessage($chatId, "❓ Unknown command. Type /help for available commands.");
