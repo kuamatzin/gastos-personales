@@ -9,6 +9,7 @@ use App\Services\OCRService;
 use App\Services\OpenAIService;
 use App\Services\TelegramService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProcessExpenseImage extends BaseExpenseProcessor
 {
@@ -36,24 +37,25 @@ class ProcessExpenseImage extends BaseExpenseProcessor
         TelegramService $telegramService
     ): void {
         $this->logStart('image', ['file_id' => $this->fileId]);
-        
+
         try {
             $user = $this->getUser();
-            
+
             // Step 1: Download image file from Telegram
             $this->tempFile = $this->downloadTelegramFile($this->fileId);
-            
+
             // Step 2: Extract text from image using OCR
+            Log::alert("Extracting text from image using OCR");
             $ocrResult = $ocrService->extractTextFromImage($this->tempFile);
             $extractedText = $ocrResult['text'] ?? '';
-            
+
             if (empty($extractedText)) {
                 throw new \Exception('OCR returned no text from image');
             }
-            
+
             // Step 3: Extract expense data using OpenAI
             $expenseData = $openAIService->extractExpenseData($extractedText);
-            
+
             // Step 4: Infer category if not already set
             if (!isset($expenseData['category_id'])) {
                 $categoryInference = $categoryService->inferCategory(
@@ -61,12 +63,12 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                     $expenseData['description'],
                     $expenseData['amount']
                 );
-                
+
                 $expenseData['category_id'] = $categoryInference['category_id'];
                 $expenseData['category_confidence'] = $categoryInference['confidence'];
                 $expenseData['inference_method'] = $categoryInference['method'];
             }
-            
+
             // Step 5: Create pending expense record
             $expense = DB::transaction(function () use ($user, $expenseData, $extractedText) {
                 return Expense::create([
@@ -90,7 +92,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                     ],
                 ]);
             });
-            
+
             // Step 6: Store context for confirmation handling
             $this->storeContext([
                 'expense_id' => $expense->id,
@@ -98,7 +100,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 'original_file_id' => $this->fileId,
                 'ocr_text' => $extractedText,
             ]);
-            
+
             // Step 7: Send confirmation message with category
             $telegramService->sendExpenseConfirmationWithCategory(
                 $this->userId,
@@ -107,7 +109,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                     'ocr_preview' => substr($extractedText, 0, 200) . '...',
                 ])
             );
-            
+
             $this->logComplete('image', [
                 'expense_id' => $expense->id,
                 'category_id' => $expense->category_id,
@@ -115,7 +117,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 'inference_method' => $expenseData['inference_method'] ?? 'unknown',
                 'ocr_text_length' => strlen($extractedText),
             ]);
-            
+
         } catch (\Exception $e) {
             // Log the error
             \Log::error('Failed to process image expense', [
@@ -124,7 +126,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Re-throw to trigger retry mechanism
             throw $e;
         } finally {
