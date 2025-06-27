@@ -354,15 +354,27 @@ class SpeechToTextService
         // They typically use the OPUS codec at 48kHz
         
         try {
-            // First, try direct transcription
+            // First, try direct transcription in Spanish
             $result = $this->transcribeAudio($oggPath, 'es-MX');
+            
+            // If Spanish fails, try English
+            if (empty($result['transcript'])) {
+                Log::info('Spanish transcription failed, trying English');
+                $result = $this->transcribeAudio($oggPath, 'en-US');
+            }
             
             if (empty($result['transcript'])) {
                 // If direct transcription fails, try converting to WAV
                 $wavPath = str_replace('.ogg', '.wav', $oggPath);
+                $wavPath = str_replace('.oga', '.wav', $wavPath); // Handle .oga extension
                 
                 if ($this->convertAudioFormat($oggPath, $wavPath)) {
                     $result = $this->transcribeAudio($wavPath, 'es-MX');
+                    
+                    // If Spanish fails, try English
+                    if (empty($result['transcript'])) {
+                        $result = $this->transcribeAudio($wavPath, 'en-US');
+                    }
                     
                     // Clean up converted file
                     if (file_exists($wavPath)) {

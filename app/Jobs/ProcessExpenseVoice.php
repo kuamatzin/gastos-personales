@@ -45,9 +45,25 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
             
             // Step 2: Transcribe voice to text (Telegram sends OGG files)
             $transcriptionResult = $speechService->processTelegramAudio($this->tempFile);
-            $transcription = $transcriptionResult['text'] ?? '';
+            $transcription = $transcriptionResult['transcript'] ?? $transcriptionResult['text'] ?? '';
+            
+            // Log transcription result for debugging
+            \Log::info('Voice transcription result', [
+                'file_id' => $this->fileId,
+                'transcription' => $transcription,
+                'confidence' => $transcriptionResult['confidence'] ?? 0,
+                'language' => $transcriptionResult['language'] ?? 'unknown',
+                'full_result' => $transcriptionResult
+            ]);
             
             if (empty($transcription)) {
+                // Send helpful message to user
+                $telegramService->sendMessage(
+                    $this->userId,
+                    "❌ I couldn't understand the voice message. Please try speaking more clearly or send the expense as text.\n\n" .
+                    "Example: \"200 pesos for lunch at restaurant\""
+                );
+                
                 throw new \Exception('Voice transcription returned empty text');
             }
             
