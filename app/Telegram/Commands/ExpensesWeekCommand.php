@@ -11,7 +11,8 @@ class ExpensesWeekCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
+        try {
+            $this->sendTyping();
         
         // Get current week boundaries (Monday to Sunday)
         $startOfWeek = Carbon::now()->startOfWeek();
@@ -88,7 +89,9 @@ class ExpensesWeekCommand extends Command
         foreach ($categoryTotals as $category => $total) {
             $emoji = $this->getCategoryEmoji($category);
             $percentage = ($total / $grandTotal) * 100;
-            $message .= "{$emoji} {$category}: " . ExpenseFormatter::formatAmount($total);
+            // Escape special characters in category name
+            $escapedCategory = $this->escapeMarkdown($category);
+            $message .= "{$emoji} {$escapedCategory}: " . ExpenseFormatter::formatAmount($total);
             $message .= " (" . number_format($percentage, 1) . "%)\n";
         }
         
@@ -110,12 +113,22 @@ class ExpensesWeekCommand extends Command
             ]
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        $this->replyWithKeyboardMarkdown($message, $keyboard);
         
         $this->logExecution('viewed', [
             'week_start' => $startOfWeek->toDateString(),
             'expense_count' => $expenses->count(),
             'total' => $grandTotal
         ]);
+        
+        } catch (\Exception $e) {
+            $this->logError('Failed to show week expenses', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't retrieve this week's expenses. Please try again later.");
+        }
     }
 }

@@ -45,6 +45,32 @@ abstract class Command
     }
     
     /**
+     * Send a reply with safe Markdown parsing
+     */
+    protected function replyWithMarkdown(string $text, array $options = []): void
+    {
+        try {
+            $options['parse_mode'] = 'Markdown';
+            $this->reply($text, $options);
+        } catch (\Exception $e) {
+            $this->logError('Markdown parsing failed, sending plain text', ['error' => $e->getMessage()]);
+            
+            // Send without markdown
+            $plainText = str_replace(['*', '`', '_'], '', $text);
+            unset($options['parse_mode']);
+            $this->reply($plainText, $options);
+        }
+    }
+    
+    /**
+     * Escape special Markdown characters
+     */
+    protected function escapeMarkdown(string $text): string
+    {
+        return str_replace(['_', '*', '`', '[', ']'], ['\_', '\*', '\`', '\[', '\]'], $text);
+    }
+    
+    /**
      * Send a reply with inline keyboard
      */
     protected function replyWithKeyboard(string $text, array $keyboard, array $options = []): void
@@ -54,6 +80,18 @@ abstract class Command
         ];
         
         $this->reply($text, $options);
+    }
+    
+    /**
+     * Send a reply with inline keyboard and safe Markdown parsing
+     */
+    protected function replyWithKeyboardMarkdown(string $text, array $keyboard, array $options = []): void
+    {
+        $options['reply_markup'] = [
+            'inline_keyboard' => $keyboard
+        ];
+        
+        $this->replyWithMarkdown($text, $options);
     }
     
     /**

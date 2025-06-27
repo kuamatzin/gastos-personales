@@ -5,18 +5,19 @@ namespace App\Http\Controllers;
 use App\Jobs\ProcessExpenseText;
 use App\Models\User;
 use App\Services\TelegramService;
-use App\Telegram\Commands\HelpCommand;
-use App\Telegram\Commands\StartCommand;
+use App\Telegram\CommandRouter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class TelegramWebhookController extends Controller
 {
     private TelegramService $telegram;
+    private CommandRouter $commandRouter;
 
     public function __construct(TelegramService $telegram)
     {
         $this->telegram = $telegram;
+        $this->commandRouter = new CommandRouter($telegram);
     }
 
     public function handle(Request $request)
@@ -80,25 +81,12 @@ class TelegramWebhookController extends Controller
 
     private function handleCommand(string $chatId, string $userId, string $command, array $message, User $user)
     {
-        $commandParts = explode(' ', $command);
-        $commandName = $commandParts[0];
-        $params = array_slice($commandParts, 1);
-
-        switch ($commandName) {
-            case '/start':
-                (new StartCommand($this->telegram, $user))->handle($message, implode(' ', $params));
-                break;
-            case '/help':
-                try {
-                    Log::info('Help command triggered', ['user_id' => $user->id, 'params' => $params]);
-                    (new HelpCommand($this->telegram, $user))->handle($message, implode(' ', $params));
-                } catch (\Exception $e) {
-                    Log::error('Help command failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-                    $this->telegram->sendMessage($chatId, "❌ Sorry, there was an error showing help. Please try again.");
-                }
-                break;
-            default:
-                $this->telegram->sendMessage($chatId, "❓ Unknown command. Type /help for available commands.");
+        // Use the CommandRouter to handle all commands
+        $handled = $this->commandRouter->route($message, $user);
+        
+        if (!$handled) {
+            // Command not found
+            $this->telegram->sendMessage($chatId, "❓ Unknown command. Type /help for available commands.");
         }
     }
 

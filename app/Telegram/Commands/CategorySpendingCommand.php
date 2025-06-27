@@ -11,16 +11,27 @@ class CategorySpendingCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
-        
-        // Check if specific category requested
-        if (!empty($params)) {
-            $this->showCategoryDetails($params);
-            return;
+        try {
+            $this->sendTyping();
+            
+            // Check if specific category requested
+            if (!empty($params)) {
+                $this->showCategoryDetails($params);
+                return;
+            }
+            
+            // Show all categories for current month
+            $this->showAllCategories();
+            
+        } catch (\Exception $e) {
+            $this->logError('Failed to show category spending', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't retrieve category spending. Please try again later.");
         }
-        
-        // Show all categories for current month
-        $this->showAllCategories();
     }
     
     /**
@@ -91,7 +102,8 @@ class CategorySpendingCommand extends Command
             $emoji = $this->getCategoryEmoji($categoryName);
             $percentage = ($data['total'] / $grandTotal) * 100;
             
-            $message .= "{$emoji} *{$categoryName}:* " . $this->formatMoney($data['total']);
+            $escapedCategory = $this->escapeMarkdown($categoryName);
+            $message .= "{$emoji} *{$escapedCategory}:* " . $this->formatMoney($data['total']);
             $message .= " (" . number_format($percentage, 1) . "%)\n";
             
             // Show top subcategories if any
@@ -100,7 +112,8 @@ class CategorySpendingCommand extends Command
                 $topSubs = array_slice($data['subcategories'], 0, 3, true);
                 
                 foreach ($topSubs as $subName => $subData) {
-                    $message .= "  └ {$subName}: " . $this->formatMoney($subData['total']) . "\n";
+                    $escapedSubName = $this->escapeMarkdown($subName);
+                    $message .= "  └ {$escapedSubName}: " . $this->formatMoney($subData['total']) . "\n";
                 }
                 
                 if (count($data['subcategories']) > 3) {
@@ -144,7 +157,7 @@ class CategorySpendingCommand extends Command
             ['text' => '📊 Top Categories', 'callback_data' => 'cmd_top_categories']
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        $this->replyWithKeyboardMarkdown($message, $keyboard);
         
         $this->logExecution('all_categories', [
             'month' => $currentMonth->format('Y-m'),
@@ -207,7 +220,7 @@ class CategorySpendingCommand extends Command
         foreach ($expenses->take(10) as $expense) {
             $date = $expense->expense_date->format('d/m');
             $amount = $this->formatMoney($expense->amount);
-            $description = \Str::limit($expense->description, 30);
+            $description = $this->escapeMarkdown(\Str::limit($expense->description, 30));
             $message .= "• {$date} - {$amount} - {$description}\n";
         }
         
@@ -223,7 +236,7 @@ class CategorySpendingCommand extends Command
             ]
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        $this->replyWithKeyboardMarkdown($message, $keyboard);
         
         $this->logExecution('category_detail', [
             'category' => $category->name,

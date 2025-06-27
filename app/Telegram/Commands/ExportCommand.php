@@ -10,7 +10,8 @@ class ExportCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
+        try {
+            $this->sendTyping();
         
         // Parse parameters for direct export
         if (!empty($params)) {
@@ -42,9 +43,19 @@ class ExportCommand extends Command
             ]
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        $this->replyWithKeyboardMarkdown($message, $keyboard);
         
         $this->logExecution('menu_shown');
+        
+        } catch (\Exception $e) {
+            $this->logError('Failed to handle export command', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't process the export request. Please try again later.");
+        }
     }
     
     /**
@@ -145,10 +156,9 @@ class ExportCommand extends Command
      */
     private function queueExport(string $format, array $dateRange): void
     {
-        $this->reply(
+        $this->replyWithMarkdown(
             "🔄 Generating your {$format} export for {$dateRange['name']}...\n\n" .
-            "_This may take a few moments. I'll send you the file when it's ready._",
-            ['parse_mode' => 'Markdown']
+            "_This may take a few moments. I'll send you the file when it's ready._"
         );
         
         // Dispatch export job

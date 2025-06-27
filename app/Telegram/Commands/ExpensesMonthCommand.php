@@ -10,14 +10,15 @@ class ExpensesMonthCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
-        
-        // Parse month from params or use current month
-        $targetMonth = $this->parseMonth($params);
-        if (!$targetMonth) {
-            $this->reply("❌ Invalid month format. Try: /expenses_month january or /expenses_month 01/2024");
-            return;
-        }
+        try {
+            $this->sendTyping();
+            
+            // Parse month from params or use current month
+            $targetMonth = $this->parseMonth($params);
+            if (!$targetMonth) {
+                $this->reply("❌ Invalid month format. Try: /expenses\_month january or /expenses\_month 01/2024");
+                return;
+            }
         
         $monthEnd = $targetMonth->copy()->endOfMonth();
         $lastMonth = $targetMonth->copy()->subMonth();
@@ -62,7 +63,9 @@ class ExpensesMonthCommand extends Command
             $change = $this->calculatePercentageChange($total, $lastMonthAmount);
             $changeStr = $change !== null ? " ({$change})" : "";
             
-            $message .= "{$emoji} *{$category}:* " . $this->formatMoney($total) . $changeStr . "\n";
+            // Escape underscores in category names for Markdown
+            $escapedCategory = str_replace('_', '\_', $category);
+            $message .= "{$emoji} *{$escapedCategory}:* " . $this->formatMoney($total) . $changeStr . "\n";
         }
         
         // Grand total and comparison
@@ -82,7 +85,9 @@ class ExpensesMonthCommand extends Command
             foreach ($topExpenses as $expense) {
                 $date = $expense->expense_date->format('d/m');
                 $amount = $this->formatMoney($expense->amount);
+                // Escape special characters in description
                 $description = \Str::limit($expense->description, 25);
+                $description = str_replace(['_', '*', '`', '[', ']'], ['\_', '\*', '\`', '\[', '\]'], $description);
                 $message .= "• {$date} - {$amount} - {$description}\n";
             }
         }
@@ -107,13 +112,32 @@ class ExpensesMonthCommand extends Command
             ]
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        // Try with Markdown first, fallback to plain text if it fails
+        try {
+            $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        } catch (\Exception $mdError) {
+            $this->logError('Markdown parsing failed, sending plain text', ['error' => $mdError->getMessage()]);
+            
+            // Send without markdown
+            $plainMessage = str_replace(['*', '`', '_'], '', $message);
+            $this->replyWithKeyboard($plainMessage, $keyboard);
+        }
         
         $this->logExecution('viewed', [
             'month' => $targetMonth->format('Y-m'),
             'expense_count' => $expenses->count(),
             'total' => $grandTotal
         ]);
+        
+        } catch (\Exception $e) {
+            $this->logError('Failed to show month expenses', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't retrieve the monthly expenses. Please try again later.");
+        }
     }
     
     /**

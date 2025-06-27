@@ -19,46 +19,57 @@ class StatsCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
-        
-        if (!$this->userHasExpenses()) {
-            $this->sendNoExpensesMessage();
-            return;
+        try {
+            $this->sendTyping();
+            
+            if (!$this->userHasExpenses()) {
+                $this->sendNoExpensesMessage();
+                return;
+            }
+            
+            // Build statistics message
+            $message = "📈 *Expense Statistics*\n\n";
+            
+            // Spending trends
+            $message .= $this->getSpendingTrends();
+            
+            // Insights
+            $message .= $this->getInsights();
+            
+            // Records
+            $message .= $this->getRecords();
+            
+            // Prediction
+            $message .= $this->getPrediction();
+            
+            // Quick actions
+            $keyboard = [
+                [
+                    ['text' => '📅 Monthly Trends', 'callback_data' => 'stats_monthly_trends'],
+                    ['text' => '⏰ By Hour', 'callback_data' => 'stats_by_hour']
+                ],
+                [
+                    ['text' => '📊 By Day', 'callback_data' => 'stats_by_day'],
+                    ['text' => '🏷️ Categories', 'callback_data' => 'cmd_top_categories']
+                ],
+                [
+                    ['text' => '📤 Export Report', 'callback_data' => 'export_report']
+                ]
+            ];
+            
+            $this->replyWithKeyboardMarkdown($message, $keyboard);
+            
+            $this->logExecution('viewed');
+            
+        } catch (\Exception $e) {
+            $this->logError('Failed to show statistics', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't generate statistics. Please try again later.");
         }
-        
-        // Build statistics message
-        $message = "📈 *Expense Statistics*\n\n";
-        
-        // Spending trends
-        $message .= $this->getSpendingTrends();
-        
-        // Insights
-        $message .= $this->getInsights();
-        
-        // Records
-        $message .= $this->getRecords();
-        
-        // Prediction
-        $message .= $this->getPrediction();
-        
-        // Quick actions
-        $keyboard = [
-            [
-                ['text' => '📅 Monthly Trends', 'callback_data' => 'stats_monthly_trends'],
-                ['text' => '⏰ By Hour', 'callback_data' => 'stats_by_hour']
-            ],
-            [
-                ['text' => '📊 By Day', 'callback_data' => 'stats_by_day'],
-                ['text' => '🏷️ Categories', 'callback_data' => 'cmd_top_categories']
-            ],
-            [
-                ['text' => '📤 Export Report', 'callback_data' => 'export_report']
-            ]
-        ];
-        
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
-        
-        $this->logExecution('viewed');
     }
     
     /**

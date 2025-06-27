@@ -19,7 +19,8 @@ class TopCategoriesCommand extends Command
     
     public function handle(array $message, string $params = ''): void
     {
-        $this->sendTyping();
+        try {
+            $this->sendTyping();
         
         // Parse period from params (default to current month)
         $period = $this->parsePeriod($params);
@@ -50,14 +51,16 @@ class TopCategoriesCommand extends Command
             $percentage = ($category->total / $total) * 100;
             $medal = $this->getPositionMedal($position);
             
-            $message .= "{$medal} {$emoji} *{$category->parent_category}*\n";
+            $escapedCategory = $this->escapeMarkdown($category->parent_category);
+            $message .= "{$medal} {$emoji} *{$escapedCategory}*\n";
             $message .= "   " . ExpenseFormatter::formatAmount($category->total);
             $message .= " • " . number_format($percentage, 1) . "%";
             $message .= " • {$category->count} expenses\n";
             
             // Show subcategory if different from parent
             if ($category->category_name !== $category->parent_category) {
-                $message .= "   _{$category->category_name}_\n";
+                $escapedSubcategory = $this->escapeMarkdown($category->category_name);
+                $message .= "   _{$escapedSubcategory}_\n";
             }
             
             $message .= "\n";
@@ -81,12 +84,22 @@ class TopCategoriesCommand extends Command
             ]
         ];
         
-        $this->replyWithKeyboard($message, $keyboard, ['parse_mode' => 'Markdown']);
+        $this->replyWithKeyboardMarkdown($message, $keyboard);
         
         $this->logExecution('viewed', [
             'period' => $period['name'],
             'category_count' => $topCategories->count()
         ]);
+        
+        } catch (\Exception $e) {
+            $this->logError('Failed to show top categories', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Send a simple fallback message
+            $this->reply("❌ Sorry, I couldn't retrieve top categories. Please try again later.");
+        }
     }
     
     /**
