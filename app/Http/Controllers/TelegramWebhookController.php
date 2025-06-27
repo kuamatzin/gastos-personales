@@ -266,10 +266,11 @@ class TelegramWebhookController extends Controller
                 );
             }
 
-            // TODO: Sync to Google Sheets if configured
-            // if (config('services.google_sheets.enabled')) {
-            //     \App\Jobs\SyncExpenseToGoogleSheets::dispatch($expense);
-            // }
+            // Sync to Google Sheets if configured
+            if (config('services.google_sheets.enabled')) {
+                \App\Jobs\SyncExpenseToGoogleSheets::dispatch($expense)
+                    ->onQueue('default');
+            }
 
             $this->telegram->editMessage($chatId, $messageId, 
                 "✅ Expense confirmed and saved!\n\n" .
