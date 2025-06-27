@@ -76,7 +76,15 @@ return [
 
     // Botones de período
     'button_today' => '📊 Gastos de Hoy',
+    'button_this_week' => '📊 Esta Semana',
+    'button_last_week' => '⬅️ Semana Pasada',
     'button_this_month' => '📅 Este Mes',
+    'button_previous_month' => '⬅️ Mes Anterior',
+    'button_next_month' => '➡️ Mes Siguiente',
+    'button_by_category' => '🏷️ Por Categoría',
+    'button_top_categories' => '🏆 Categorías Top',
+    'button_all_categories' => '⬅️ Todas las Categorías',
     'button_statistics' => '📈 Estadísticas',
     'button_help' => '❓ Ayuda',
+    'button_export' => '📤 Exportar',
 ];

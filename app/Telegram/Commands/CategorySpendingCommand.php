@@ -31,7 +31,7 @@ class CategorySpendingCommand extends Command
             ]);
 
             // Send a simple fallback message
-            $this->reply("❌ Sorry, I couldn't retrieve category spending. Please try again later.");
+            $this->reply($this->trans('telegram.error_processing'));
         }
     }
 
@@ -51,7 +51,7 @@ class CategorySpendingCommand extends Command
             ->get();
 
         if ($expenses->isEmpty()) {
-            $this->sendNoExpensesMessage('this month');
+            $this->reply($this->trans('telegram.no_expenses'));
 
             return;
         }
@@ -98,7 +98,10 @@ class CategorySpendingCommand extends Command
 
         // Build message
         $monthName = ucfirst($currentMonth->translatedFormat('F Y'));
-        $message = "🏷️ *Category Spending - {$monthName}*\n\n";
+        $periodText = $this->user->language === 'es' ? $monthName : $monthName;
+        $message = $this->trans('telegram.category_spending_header', [
+            'period' => $periodText,
+        ]);
 
         foreach ($categoryData as $categoryName => $data) {
             $emoji = $this->getCategoryEmoji($categoryName);
@@ -119,16 +122,22 @@ class CategorySpendingCommand extends Command
                 }
 
                 if (count($data['subcategories']) > 3) {
-                    $message .= '  └ _... and '.(count($data['subcategories']) - 3)." more_\n";
+                    $remaining = count($data['subcategories']) - 3;
+                    $moreText = $this->user->language === 'es' ? "y {$remaining} más" : "and {$remaining} more";
+                    $message .= "  └ _... {$moreText}_\n";
                 }
             }
 
             $message .= "\n";
         }
 
-        $message .= '📊 *Total:* '.$this->formatMoney($grandTotal)."\n";
-        $message .= "📈 *{$expenses->count()} expenses in ".count($categoryData)." categories*\n\n";
-        $message .= '💡 _Tap a category below for details_';
+        $message .= $this->trans('telegram.total', ['amount' => number_format($grandTotal, 2)])."\n";
+        $expenseText = $this->user->language === 'es'
+            ? "*{$expenses->count()} gastos en ".count($categoryData).' categorías*'
+            : "*{$expenses->count()} expenses in ".count($categoryData).' categories*';
+        $message .= "📈 {$expenseText}\n\n";
+        $tipText = $this->user->language === 'es' ? 'Toca una categoría para ver detalles' : 'Tap a category below for details';
+        $message .= "💡 _{$tipText}_";
 
         // Create category buttons
         $keyboard = [];
@@ -155,8 +164,8 @@ class CategorySpendingCommand extends Command
 
         // Add navigation row
         $keyboard[] = [
-            ['text' => '📅 This Month', 'callback_data' => 'cmd_expenses_month'],
-            ['text' => '📊 Top Categories', 'callback_data' => 'cmd_top_categories'],
+            ['text' => $this->trans('telegram.button_this_month'), 'callback_data' => 'cmd_expenses_month'],
+            ['text' => $this->trans('telegram.button_top_categories'), 'callback_data' => 'cmd_top_categories'],
         ];
 
         $this->replyWithKeyboardMarkdown($message, $keyboard);
@@ -181,7 +190,10 @@ class CategorySpendingCommand extends Command
             ->first();
 
         if (! $category) {
-            $this->reply("❌ Category '{$categoryName}' not found. Use /category_spending to see all categories.");
+            $errorMsg = $this->user->language === 'es'
+                ? "❌ Categoría '{$categoryName}' no encontrada. Usa /gastos_categoria para ver todas las categorías."
+                : "❌ Category '{$categoryName}' not found. Use /category_spending to see all categories.";
+            $this->reply($errorMsg);
 
             return;
         }
@@ -201,7 +213,10 @@ class CategorySpendingCommand extends Command
             ->get();
 
         if ($expenses->isEmpty()) {
-            $this->reply("📊 No expenses found for *{$category->name}* this month.", ['parse_mode' => 'Markdown']);
+            $noExpensesMsg = $this->user->language === 'es'
+                ? "📊 No se encontraron gastos para *{$category->name}* este mes."
+                : "📊 No expenses found for *{$category->name}* this month.";
+            $this->reply($noExpensesMsg, ['parse_mode' => 'Markdown']);
 
             return;
         }
@@ -215,12 +230,14 @@ class CategorySpendingCommand extends Command
         $monthName = ucfirst($currentMonth->translatedFormat('F'));
         $message = "{$emoji} *{$category->name} - {$monthName}*\n\n";
 
-        $message .= '💰 *Total:* '.$this->formatMoney($total)."\n";
-        $message .= '📊 *Daily Average:* '.$this->formatMoney($dailyAverage)."\n";
-        $message .= "📈 *Transactions:* {$expenses->count()}\n\n";
+        $message .= $this->trans('telegram.total', ['amount' => number_format($total, 2)])."\n";
+        $message .= $this->trans('telegram.stats_average_daily', ['amount' => number_format($dailyAverage, 2)])."\n";
+        $transText = $this->user->language === 'es' ? 'Transacciones' : 'Transactions';
+        $message .= "📈 *{$transText}:* {$expenses->count()}\n\n";
 
         // Recent expenses
-        $message .= "*Recent expenses:*\n";
+        $recentText = $this->user->language === 'es' ? 'Gastos recientes' : 'Recent expenses';
+        $message .= "*{$recentText}:*\n";
         foreach ($expenses->take(10) as $expense) {
             $date = $expense->expense_date->format('d/m');
             $amount = $this->formatMoney($expense->amount);
@@ -229,14 +246,16 @@ class CategorySpendingCommand extends Command
         }
 
         if ($expenses->count() > 10) {
-            $message .= '• _... and '.($expenses->count() - 10)." more_\n";
+            $remaining = $expenses->count() - 10;
+            $moreText = $this->user->language === 'es' ? "y {$remaining} más" : "and {$remaining} more";
+            $message .= "• _... {$moreText}_\n";
         }
 
         // Quick actions
         $keyboard = [
             [
-                ['text' => '⬅️ All Categories', 'callback_data' => 'cmd_category_spending'],
-                ['text' => '📤 Export', 'callback_data' => 'export_category_'.$category->id],
+                ['text' => $this->trans('telegram.button_all_categories'), 'callback_data' => 'cmd_category_spending'],
+                ['text' => $this->trans('telegram.button_export'), 'callback_data' => 'export_category_'.$category->id],
             ],
         ];
 

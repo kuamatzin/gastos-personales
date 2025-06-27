@@ -14,7 +14,10 @@ class ExpensesMonthCommand extends Command
             // Parse month from params or use current month
             $targetMonth = $this->parseMonth($params);
             if (! $targetMonth) {
-                $this->reply("❌ Invalid month format. Try: /expenses\_month january or /expenses\_month 01/2024");
+                $errorMsg = $this->user->language === 'es'
+                    ? "❌ Formato de mes inválido. Intenta: /gastos\_mes enero o /gastos\_mes 01/2024"
+                    : "❌ Invalid month format. Try: /expenses\_month january or /expenses\_month 01/2024";
+                $this->reply($errorMsg);
 
                 return;
             }
@@ -39,8 +42,7 @@ class ExpensesMonthCommand extends Command
                 ->get();
 
             if ($expenses->isEmpty()) {
-                $monthName = ucfirst($targetMonth->translatedFormat('F Y'));
-                $this->sendNoExpensesMessage($monthName);
+                $this->reply($this->trans('telegram.no_expenses'));
 
                 return;
             }
@@ -54,7 +56,10 @@ class ExpensesMonthCommand extends Command
 
             // Build response message
             $monthName = ucfirst($targetMonth->translatedFormat('F Y'));
-            $message = "📅 *{$monthName} Expenses*\n\n";
+            $message = $this->trans('telegram.expense_month_header', [
+                'month' => $targetMonth->translatedFormat('F'),
+                'year' => $targetMonth->format('Y'),
+            ]);
 
             // Category breakdown with comparison
             foreach ($categoryTotals as $category => $total) {
@@ -69,19 +74,21 @@ class ExpensesMonthCommand extends Command
             }
 
             // Grand total and comparison
-            $message .= "\n📊 *Total:* ".$this->formatMoney($grandTotal)."\n";
+            $message .= $this->trans('telegram.total', ['amount' => number_format($grandTotal, 2)])."\n";
 
             if ($lastMonthTotal > 0) {
                 $totalChange = $this->calculatePercentageChange($grandTotal, $lastMonthTotal);
-                $message .= "📈 *vs Last Month:* {$totalChange}\n";
+                $compareText = $this->user->language === 'es' ? '*vs Mes Pasado:*' : '*vs Last Month:*';
+                $message .= "📈 {$compareText} {$totalChange}\n";
             }
 
-            $message .= "💡 *{$expenses->count()} expenses recorded*\n\n";
+            $message .= $this->trans('telegram.stats_expense_count', ['count' => $expenses->count()])."\n\n";
 
             // Top expenses
             $topExpenses = $expenses->sortByDesc('amount')->take(3);
             if ($topExpenses->isNotEmpty()) {
-                $message .= "*Top 3 expenses:*\n";
+                $topText = $this->user->language === 'es' ? '*Top 3 gastos:*' : '*Top 3 expenses:*';
+                $message .= "{$topText}\n";
                 foreach ($topExpenses as $expense) {
                     $date = $expense->expense_date->format('d/m');
                     $amount = $this->formatMoney($expense->amount);
@@ -95,20 +102,20 @@ class ExpensesMonthCommand extends Command
             // Daily average
             $daysInMonth = $targetMonth->daysInMonth;
             $dailyAverage = $grandTotal / $daysInMonth;
-            $message .= "\n💰 *Daily Average:* ".$this->formatMoney($dailyAverage);
+            $message .= "\n".$this->trans('telegram.stats_average_daily', ['amount' => number_format($dailyAverage, 2)]);
 
             // Quick actions
             $keyboard = [
                 [
-                    ['text' => '🏷️ By Category', 'callback_data' => 'cmd_category_spending_'.$targetMonth->format('Y-m')],
-                    ['text' => '📊 Today', 'callback_data' => 'cmd_expenses_today'],
+                    ['text' => $this->trans('telegram.button_by_category'), 'callback_data' => 'cmd_category_spending_'.$targetMonth->format('Y-m')],
+                    ['text' => $this->trans('telegram.button_today'), 'callback_data' => 'cmd_expenses_today'],
                 ],
                 [
-                    ['text' => '⬅️ Previous Month', 'callback_data' => 'cmd_expenses_month_'.$lastMonth->format('Y-m')],
-                    ['text' => '➡️ Next Month', 'callback_data' => 'cmd_expenses_month_'.$targetMonth->copy()->addMonth()->format('Y-m')],
+                    ['text' => $this->trans('telegram.button_previous_month'), 'callback_data' => 'cmd_expenses_month_'.$lastMonth->format('Y-m')],
+                    ['text' => $this->trans('telegram.button_next_month'), 'callback_data' => 'cmd_expenses_month_'.$targetMonth->copy()->addMonth()->format('Y-m')],
                 ],
                 [
-                    ['text' => '📤 Export', 'callback_data' => 'cmd_export_month_'.$targetMonth->format('Y-m')],
+                    ['text' => $this->trans('telegram.button_export'), 'callback_data' => 'cmd_export_month_'.$targetMonth->format('Y-m')],
                 ],
             ];
 
@@ -136,7 +143,7 @@ class ExpensesMonthCommand extends Command
             ]);
 
             // Send a simple fallback message
-            $this->reply("❌ Sorry, I couldn't retrieve the monthly expenses. Please try again later.");
+            $this->reply($this->trans('telegram.error_processing'));
         }
     }
 

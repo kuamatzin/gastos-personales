@@ -24,7 +24,7 @@ class ExpensesTodayCommand extends Command
                 ->get();
 
             if ($expenses->isEmpty()) {
-                $this->sendNoExpensesMessage('today');
+                $this->reply($this->trans('telegram.no_expenses'));
 
                 return;
             }
@@ -48,8 +48,9 @@ class ExpensesTodayCommand extends Command
             arsort($categoryTotals);
 
             // Build response message
-            $message = "💰 *Today's Expenses* ";
-            $message .= '('.$today->format('d/m/Y').")\n\n";
+            $message = $this->trans('telegram.expense_today_header', [
+                'date' => $today->format('d/m/Y'),
+            ]);
 
             // Category breakdown
             foreach ($categoryTotals as $category => $total) {
@@ -59,11 +60,11 @@ class ExpensesTodayCommand extends Command
                 $message .= "{$emoji} *{$escapedCategory}:* ".$this->formatMoney($total)."\n";
             }
 
-            $message .= "\n📊 *Total:* ".$this->formatMoney($grandTotal)."\n";
-            $message .= "📈 *{$expenses->count()} expenses recorded*\n\n";
+            $message .= $this->trans('telegram.total', ['amount' => number_format($grandTotal, 2)])."\n";
+            $message .= $this->trans('telegram.stats_expense_count', ['count' => $expenses->count()])."\n";
 
             // Recent expenses list
-            $message .= "*Recent expenses:*\n";
+            $message .= "\n*".($this->user->language === 'es' ? 'Gastos recientes:' : 'Recent expenses:')."*\n";
             $recentExpenses = $expenses->take(5);
 
             foreach ($recentExpenses as $expense) {
@@ -77,18 +78,18 @@ class ExpensesTodayCommand extends Command
 
             if ($expenses->count() > 5) {
                 $remaining = $expenses->count() - 5;
-                $message .= "• _... and {$remaining} more_\n";
+                $message .= '• _... '.($this->user->language === 'es' ? "y {$remaining} más" : "and {$remaining} more")."_\n";
             }
 
             // Quick actions
             $keyboard = [
                 [
-                    ['text' => '📅 This Month', 'callback_data' => 'cmd_expenses_month'],
-                    ['text' => '📊 This Week', 'callback_data' => 'cmd_expenses_week'],
+                    ['text' => $this->trans('telegram.button_this_month'), 'callback_data' => 'cmd_expenses_month'],
+                    ['text' => $this->trans('telegram.button_this_week'), 'callback_data' => 'cmd_expenses_week'],
                 ],
                 [
-                    ['text' => '📈 Statistics', 'callback_data' => 'cmd_stats'],
-                    ['text' => '📤 Export', 'callback_data' => 'cmd_export_today'],
+                    ['text' => $this->trans('telegram.button_statistics'), 'callback_data' => 'cmd_stats'],
+                    ['text' => $this->trans('telegram.button_export'), 'callback_data' => 'cmd_export_today'],
                 ],
             ];
 
@@ -116,7 +117,7 @@ class ExpensesTodayCommand extends Command
             ]);
 
             // Send a simple fallback message
-            $this->reply("❌ Sorry, I couldn't retrieve today's expenses. Please try again later.");
+            $this->reply($this->trans('telegram.error_processing'));
         }
     }
 }

@@ -27,7 +27,7 @@ class ExpensesWeekCommand extends Command
                 ->get();
 
             if ($expenses->isEmpty()) {
-                $this->sendNoExpensesMessage('this week');
+                $this->reply($this->trans('telegram.no_expenses'));
 
                 return;
             }
@@ -58,11 +58,13 @@ class ExpensesWeekCommand extends Command
 
             // Build message
             $weekRange = ExpenseFormatter::formatPeriod($startOfWeek, $endOfWeek);
-            $message = "📊 *This Week's Expenses*\n";
-            $message .= "_{$weekRange}_\n\n";
+            $message = $this->trans('telegram.expense_week_header', [
+                'start_date' => $startOfWeek->format('d/m'),
+                'end_date' => $endOfWeek->format('d/m/Y'),
+            ]);
 
             // Daily breakdown
-            $message .= "*Daily Spending:*\n";
+            $message .= '*'.($this->user->language === 'es' ? 'Gasto Diario:' : 'Daily Spending:')."*\n";
             $currentDate = $startOfWeek->copy();
 
             while ($currentDate <= $endOfWeek) {
@@ -71,7 +73,7 @@ class ExpensesWeekCommand extends Command
                 $amount = $dailyTotals[$dateKey] ?? 0;
 
                 if ($currentDate->isToday()) {
-                    $dayName .= ' (Today)';
+                    $dayName .= ' ('.($this->user->language === 'es' ? 'Hoy' : 'Today').')';
                 }
 
                 if ($amount > 0) {
@@ -84,7 +86,7 @@ class ExpensesWeekCommand extends Command
             }
 
             // Category summary
-            $message .= "\n*By Category:*\n";
+            $message .= "\n*".($this->user->language === 'es' ? 'Por Categoría:' : 'By Category:')."*\n";
             arsort($categoryTotals);
 
             foreach ($categoryTotals as $category => $total) {
@@ -97,20 +99,20 @@ class ExpensesWeekCommand extends Command
             }
 
             // Summary
-            $message .= "\n📊 *Total:* ".ExpenseFormatter::formatAmount($grandTotal)."\n";
+            $message .= $this->trans('telegram.total', ['amount' => number_format($grandTotal, 2)])."\n";
             $dailyAverage = $grandTotal / 7;
-            $message .= '📈 *Daily Average:* '.ExpenseFormatter::formatAmount($dailyAverage)."\n";
-            $message .= "💡 *{$expenses->count()} expenses recorded*";
+            $message .= $this->trans('telegram.stats_average_daily', ['amount' => number_format($dailyAverage, 2)])."\n";
+            $message .= $this->trans('telegram.stats_expense_count', ['count' => $expenses->count()]);
 
             // Quick actions
             $keyboard = [
                 [
-                    ['text' => '📊 Today', 'callback_data' => 'cmd_expenses_today'],
-                    ['text' => '📅 This Month', 'callback_data' => 'cmd_expenses_month'],
+                    ['text' => $this->trans('telegram.button_today'), 'callback_data' => 'cmd_expenses_today'],
+                    ['text' => $this->trans('telegram.button_this_month'), 'callback_data' => 'cmd_expenses_month'],
                 ],
                 [
-                    ['text' => '⬅️ Last Week', 'callback_data' => 'cmd_expenses_week_last'],
-                    ['text' => '📈 Statistics', 'callback_data' => 'cmd_stats'],
+                    ['text' => $this->trans('telegram.button_last_week'), 'callback_data' => 'cmd_expenses_week_last'],
+                    ['text' => $this->trans('telegram.button_statistics'), 'callback_data' => 'cmd_stats'],
                 ],
             ];
 
@@ -129,7 +131,7 @@ class ExpensesWeekCommand extends Command
             ]);
 
             // Send a simple fallback message
-            $this->reply("❌ Sorry, I couldn't retrieve this week's expenses. Please try again later.");
+            $this->reply($this->trans('telegram.error_processing'));
         }
     }
 }

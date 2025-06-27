@@ -76,7 +76,15 @@ return [
 
     // Period buttons
     'button_today' => "📊 Today's Expenses",
+    'button_this_week' => '📊 This Week',
+    'button_last_week' => '⬅️ Last Week',
     'button_this_month' => '📅 This Month',
+    'button_previous_month' => '⬅️ Previous Month',
+    'button_next_month' => '➡️ Next Month',
+    'button_by_category' => '🏷️ By Category',
+    'button_top_categories' => '🏆 Top Categories',
+    'button_all_categories' => '⬅️ All Categories',
     'button_statistics' => '📈 Statistics',
     'button_help' => '❓ Help',
+    'button_export' => '📤 Export',
 ];
