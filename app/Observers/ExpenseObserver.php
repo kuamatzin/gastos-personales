@@ -24,13 +24,10 @@ class ExpenseObserver
      */
     public function updated(Expense $expense): void
     {
-        // Check if status changed to confirmed
-        if ($expense->status === 'confirmed' && $expense->wasChanged('status')) {
-            $this->syncToSheets($expense);
-        }
-        
-        // If expense was already confirmed and other fields changed, sync again
-        if ($expense->status === 'confirmed' && !$expense->wasChanged('status')) {
+        // Only sync if status changed from non-confirmed to confirmed
+        if ($expense->status === 'confirmed' && 
+            $expense->wasChanged('status') && 
+            $expense->getOriginal('status') !== 'confirmed') {
             $this->syncToSheets($expense);
         }
     }
@@ -83,8 +80,8 @@ class ExpenseObserver
             // Check if Google Sheets sync is enabled
             if (config('services.google_sheets.enabled')) {
                 SyncExpenseToSheets::dispatch($expense)
-                    ->onQueue('sheets')
-                    ->delay(now()->addSeconds(5)); // Small delay to ensure all data is committed
+                    ->onQueue('default')
+                    ->delay(now()->addSeconds(2)); // Small delay to ensure all data is committed
                 
                 Log::info('Google Sheets sync job dispatched', [
                     'expense_id' => $expense->id
