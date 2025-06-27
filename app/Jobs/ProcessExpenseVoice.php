@@ -7,7 +7,7 @@ use App\Services\CategoryInferenceService;
 use App\Services\CategoryLearningService;
 use App\Services\OpenAIService;
 use App\Services\TelegramService;
-use App\Services\VoiceTranscriptionService;
+use App\Services\SpeechToTextService;
 use Illuminate\Support\Facades\DB;
 
 class ProcessExpenseVoice extends BaseExpenseProcessor
@@ -29,7 +29,7 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
      * Execute the job.
      */
     public function handle(
-        VoiceTranscriptionService $voiceService,
+        SpeechToTextService $speechService,
         OpenAIService $openAIService,
         CategoryInferenceService $categoryService,
         CategoryLearningService $learningService,
@@ -44,7 +44,8 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
             $this->tempFile = $this->downloadTelegramFile($this->fileId);
             
             // Step 2: Transcribe voice to text
-            $transcription = $voiceService->transcribe($this->tempFile);
+            $transcriptionResult = $speechService->transcribeAudio($this->tempFile);
+            $transcription = $transcriptionResult['text'] ?? '';
             
             if (empty($transcription)) {
                 throw new \Exception('Voice transcription returned empty text');
