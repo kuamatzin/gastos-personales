@@ -8,6 +8,7 @@ use App\Services\CategoryLearningService;
 use App\Services\OpenAIService;
 use App\Services\SpeechToTextService;
 use App\Services\TelegramService;
+use App\Services\DateParserService;
 use Illuminate\Support\Facades\DB;
 
 class ProcessExpenseVoice extends BaseExpenseProcessor
@@ -34,7 +35,8 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
         OpenAIService $openAIService,
         CategoryInferenceService $categoryService,
         CategoryLearningService $learningService,
-        TelegramService $telegramService
+        TelegramService $telegramService,
+        DateParserService $dateParser
     ): void {
         $this->logStart('voice', ['file_id' => $this->fileId]);
 
@@ -70,6 +72,20 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
 
             // Step 3: Extract expense data using OpenAI
             $expenseData = $openAIService->extractExpenseData($transcription);
+
+            // Step 3.5: Validate/extract date using DateParser as fallback
+            if (!isset($expenseData['date']) || $expenseData['date'] === now()->toDateString()) {
+                // If OpenAI didn't find a date or used today's date, try our parser
+                $parsedDate = $dateParser->extractDateFromText($transcription);
+                if ($parsedDate) {
+                    $expenseData['date'] = $parsedDate->toDateString();
+                    \Log::info('Date parsed from voice transcription', [
+                        'transcription' => $transcription,
+                        'parsed_date' => $expenseData['date'],
+                        'relative' => $dateParser->getRelativeDateDescription($parsedDate)
+                    ]);
+                }
+            }
 
             // Step 4: Infer category if not already set
             if (! isset($expenseData['category_id'])) {

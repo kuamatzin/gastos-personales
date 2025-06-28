@@ -7,6 +7,7 @@ use App\Services\CategoryInferenceService;
 use App\Services\CategoryLearningService;
 use App\Services\OpenAIService;
 use App\Services\TelegramService;
+use App\Services\DateParserService;
 use Illuminate\Support\Facades\DB;
 
 class ProcessExpenseText extends BaseExpenseProcessor
@@ -30,7 +31,8 @@ class ProcessExpenseText extends BaseExpenseProcessor
         OpenAIService $openAIService,
         CategoryInferenceService $categoryService,
         CategoryLearningService $learningService,
-        TelegramService $telegramService
+        TelegramService $telegramService,
+        DateParserService $dateParser
     ): void {
         // Handle special commands
         if ($this->text === 'delete_message') {
@@ -46,6 +48,20 @@ class ProcessExpenseText extends BaseExpenseProcessor
 
             // Step 1: Extract expense data using OpenAI
             $expenseData = $openAIService->extractExpenseData($this->text);
+
+            // Step 1.5: Validate/extract date using DateParser as fallback
+            if (!isset($expenseData['date']) || $expenseData['date'] === now()->toDateString()) {
+                // If OpenAI didn't find a date or used today's date, try our parser
+                $parsedDate = $dateParser->extractDateFromText($this->text);
+                if ($parsedDate) {
+                    $expenseData['date'] = $parsedDate->toDateString();
+                    \Log::info('Date parsed from text', [
+                        'original_text' => $this->text,
+                        'parsed_date' => $expenseData['date'],
+                        'relative' => $dateParser->getRelativeDateDescription($parsedDate)
+                    ]);
+                }
+            }
 
             // Step 2: Infer category if not already set
             if (! isset($expenseData['category_id'])) {

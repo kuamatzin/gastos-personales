@@ -52,7 +52,13 @@ Expected format:
 }
 
 Rules:
-- If no date is mentioned, use today's date: ".date('Y-m-d').'
+- Parse dates carefully:
+  - 'ayer' or 'yesterday' = ".date('Y-m-d', strtotime('-1 day'))."
+  - 'antier' or 'anteayer' = ".date('Y-m-d', strtotime('-2 days'))."
+  - 'hoy' or 'today' = ".date('Y-m-d')."
+  - 'esta semana' = current week
+  - 'la semana pasada' = last week
+  - If no date mentioned at all, use today: ".date('Y-m-d').'
 - Choose the most appropriate category from the list
 - Extract merchant name if clearly identifiable
 - Amount must be numeric without currency symbols
