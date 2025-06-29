@@ -115,30 +115,91 @@ class ReceiptParserService
      */
     public function extractTotal(array $lines): ?float
     {
+        // Enhanced patterns for total detection
         $patterns = [
+            // Standard total patterns
             '/TOTAL\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
             '/TOTAL\s+A\s+PAGAR\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
             '/IMPORTE\s+TOTAL\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
             '/GRAN\s+TOTAL\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
             '/^TOTAL\s+\$?\s*([\d,]+\.?\d*)$/i',
+            // Additional patterns
+            '/PAGAR\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
+            '/VENTA\s+TOTAL\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
+            '/TOTAL\s+VENTA\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
+            '/TOTAL\s+GENERAL\s*:?\s*\$?\s*([\d,]+\.?\d*)/i',
+            // Pattern with = sign
+            '/TOTAL\s*=\s*\$?\s*([\d,]+\.?\d*)/i',
+            // Multi-line pattern (TOTAL on one line, amount on next)
+            '/^TOTAL\s*:?\s*$/i',
         ];
 
-        // Search from bottom up (total usually at the end)
+        // First, search from bottom up (total usually at the end)
         $reversedLines = array_reverse($lines);
+        $foundTotalLine = false;
 
-        foreach ($reversedLines as $line) {
+        foreach ($reversedLines as $index => $line) {
+            // Check if previous line said "TOTAL" and this line has amount
+            if ($foundTotalLine && preg_match('/^\$?\s*([\d,]+\.?\d*)$/', $line, $matches)) {
+                return $this->parseAmount($matches[1]);
+            }
+            
+            // Check for total patterns
             foreach ($patterns as $pattern) {
                 if (preg_match($pattern, $line, $matches)) {
+                    // If it's just "TOTAL:" with no amount, mark it and check next line
+                    if ($pattern === '/^TOTAL\s*:?\s*$/i') {
+                        $foundTotalLine = true;
+                        continue;
+                    }
                     return $this->parseAmount($matches[1]);
                 }
             }
         }
 
-        // Try to find largest amount in last 10 lines
-        $lastLines = array_slice($lines, -10);
+        // If no total found, look for the largest amount after any subtotal/tax lines
+        $amounts = [];
+        $foundSubtotalOrTax = false;
+        
+        foreach ($lines as $line) {
+            // Check if we've found subtotal or tax section
+            if (preg_match('/SUBTOTAL|SUB\s*TOTAL|IVA|I\.V\.A|TAX|IMPUESTO/i', $line)) {
+                $foundSubtotalOrTax = true;
+            }
+            
+            // If we're after subtotal/tax, look for amounts
+            if ($foundSubtotalOrTax) {
+                // Skip lines that are clearly item lines or other non-total amounts
+                if (preg_match('/^\d+\s+/', $line) || // Starts with quantity
+                    preg_match('/SUBTOTAL|IVA|TAX|CAMBIO|EFECTIVO|RECIBIDO/i', $line)) {
+                    continue;
+                }
+                
+                if (preg_match('/\$?\s*([\d,]+\.?\d{2})/', $line, $matches)) {
+                    $amount = $this->parseAmount($matches[1]);
+                    if ($amount > 0) {
+                        $amounts[] = $amount;
+                    }
+                }
+            }
+        }
+
+        // If we found amounts after subtotal/tax, return the largest
+        if (!empty($amounts)) {
+            return max($amounts);
+        }
+
+        // Last resort: find largest amount in last 15 lines (but not from the first few lines which might be header)
+        $lastLines = array_slice($lines, -15);
         $amounts = [];
 
         foreach ($lastLines as $line) {
+            // Skip obvious non-total lines
+            if (preg_match('/^\d+\s+/', $line) || // Item lines starting with quantity
+                preg_match('/\b(?:CAJERO|CAJA|VENDEDOR|SUCURSAL|FOLIO|TICKET|TRANS|AUT)\b/i', $line)) {
+                continue;
+            }
+            
             if (preg_match('/\$?\s*([\d,]+\.?\d{2})/', $line, $matches)) {
                 $amount = $this->parseAmount($matches[1]);
                 if ($amount > 0) {
@@ -499,7 +560,22 @@ class ReceiptParserService
         }
 
         // Not a total/subtotal line
-        if (preg_match('/TOTAL|SUBTOTAL|IVA|TAX|CAMBIO|EFECTIVO/i', $line)) {
+        if (preg_match('/TOTAL|SUBTOTAL|IVA|TAX|CAMBIO|EFECTIVO|AHORRO|DESCUENTO|PROPINA/i', $line)) {
+            return false;
+        }
+        
+        // Skip lines that are clearly metadata
+        if (preg_match('/^(AUT|TRANS|FOLIO|TICKET|REF|CAJA|CAJERO|MESA|MESERO):/i', $line)) {
+            return false;
+        }
+        
+        // Skip lines with very large numbers (likely transaction IDs)
+        if (preg_match('/\d{6,}/', $line)) {
+            return false;
+        }
+        
+        // Skip address-like lines
+        if (preg_match('/\b(AV\.|CALLE|COL\.|BLVD\.|CP|C\.P\.)\b/i', $line)) {
             return false;
         }
 

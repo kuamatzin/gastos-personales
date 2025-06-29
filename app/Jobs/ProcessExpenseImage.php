@@ -7,6 +7,7 @@ use App\Services\CategoryInferenceService;
 use App\Services\CategoryLearningService;
 use App\Services\OCRService;
 use App\Services\OpenAIService;
+use App\Services\ReceiptParserService;
 use App\Services\TelegramService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -33,6 +34,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
     public function handle(
         OCRService $ocrService,
         OpenAIService $openAIService,
+        ReceiptParserService $receiptParser,
         CategoryInferenceService $categoryService,
         CategoryLearningService $learningService,
         TelegramService $telegramService
@@ -54,10 +56,42 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 throw new \Exception('OCR returned no text from image');
             }
 
-            // Step 3: Extract expense data using OpenAI
-            $expenseData = $openAIService->extractExpenseData($extractedText);
+            // Step 3: Try to parse as receipt first
+            $receiptData = $receiptParser->parseReceipt($extractedText);
+            
+            // Step 4: Extract expense data
+            if ($receiptData['total'] && $receiptData['confidence'] > 0.5) {
+                // Use receipt parser data if confidence is good
+                Log::info('Using receipt parser data', [
+                    'total' => $receiptData['total'],
+                    'merchant' => $receiptData['merchant'],
+                    'confidence' => $receiptData['confidence']
+                ]);
+                
+                $expenseData = [
+                    'amount' => $receiptData['total'],
+                    'description' => $this->buildReceiptDescription($receiptData),
+                    'merchant_name' => $receiptData['merchant'],
+                    'date' => $receiptData['date'],
+                    'confidence' => $receiptData['confidence'],
+                ];
+                
+                // Still use OpenAI for category inference from the description
+                $categoryData = $openAIService->inferCategory(
+                    $expenseData['description'], 
+                    $expenseData['amount']
+                );
+                $expenseData['category'] = $categoryData['category_slug'] ?? null;
+                $expenseData['category_confidence'] = $categoryData['confidence'] ?? 0.5;
+            } else {
+                // Fallback to OpenAI for general expense extraction
+                Log::info('Receipt parser low confidence, using OpenAI', [
+                    'parser_confidence' => $receiptData['confidence']
+                ]);
+                $expenseData = $openAIService->extractExpenseData($extractedText);
+            }
 
-            // Step 4: Infer category if not already set
+            // Step 5: Infer category if not already set
             if (! isset($expenseData['category_id'])) {
                 $categoryInference = $categoryService->inferCategory(
                     $user,
@@ -70,7 +104,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 $expenseData['inference_method'] = $categoryInference['method'];
             }
 
-            // Step 5: Create pending expense record
+            // Step 6: Create pending expense record
             $expense = DB::transaction(function () use ($user, $expenseData, $extractedText) {
                 return Expense::create([
                     'user_id' => $user->id,
@@ -94,7 +128,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 ]);
             });
 
-            // Step 6: Store context for confirmation handling
+            // Step 7: Store context for confirmation handling
             $this->storeContext([
                 'expense_id' => $expense->id,
                 'expense_data' => $expenseData,
@@ -102,7 +136,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 'ocr_text' => $extractedText,
             ]);
 
-            // Step 7: Send confirmation message with category
+            // Step 8: Send confirmation message with category
             $telegramService->sendExpenseConfirmationWithCategory(
                 $this->userId,
                 array_merge($expenseData, [
@@ -143,6 +177,25 @@ class ProcessExpenseImage extends BaseExpenseProcessor
     protected function getFailureMessage(): string
     {
         return "I couldn't read the receipt from your image. Please make sure the image is clear and try again, or send the expense as text.";
+    }
+
+    /**
+     * Build description from receipt data
+     */
+    private function buildReceiptDescription(array $receiptData): string
+    {
+        $parts = [];
+        
+        if ($receiptData['merchant']) {
+            $parts[] = $receiptData['merchant'];
+        }
+        
+        if (!empty($receiptData['items'])) {
+            $itemCount = count($receiptData['items']);
+            $parts[] = "({$itemCount} artículos)";
+        }
+        
+        return implode(' ', $parts) ?: 'Gasto de ticket';
     }
 
     /**
