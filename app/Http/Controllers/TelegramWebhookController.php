@@ -498,7 +498,43 @@ class TelegramWebhookController extends Controller
             }
 
             // Extract command from callback data
-            $command = '/' . str_replace('cmd_', '', $data);
+            // Remove 'cmd_' prefix
+            $callbackData = str_replace('cmd_', '', $data);
+            
+            // Define commands that accept parameters and their expected part count
+            $commandsWithParams = [
+                'expenses_month' => 2,       // expenses + month
+                'expenses_week' => 2,        // expenses + week  
+                'category_spending' => 2,    // category + spending
+                'export_month' => 2,         // export + month
+                'export_week' => 2,          // export + week
+                'export_today' => 2,         // export + today
+            ];
+            
+            $commandText = '';
+            $callbackParts = explode('_', $callbackData);
+            
+            // Try to match known commands with parameters
+            foreach ($commandsWithParams as $cmdName => $partCount) {
+                $cmdParts = explode('_', $cmdName);
+                $testParts = array_slice($callbackParts, 0, $partCount);
+                
+                if (implode('_', $testParts) === $cmdName && count($callbackParts) > $partCount) {
+                    // Found a command with parameters
+                    $command = '/' . $cmdName;
+                    $params = implode('_', array_slice($callbackParts, $partCount));
+                    // Convert underscores back to hyphens for dates
+                    $params = str_replace('_', '-', $params);
+                    $commandText = $command . ' ' . $params;
+                    break;
+                }
+            }
+            
+            // If no match found, treat as simple command
+            if (empty($commandText)) {
+                $command = '/' . $callbackData;
+                $commandText = $command;
+            }
             
             // Create a fake message structure for the command router
             $fakeMessage = [
@@ -511,7 +547,7 @@ class TelegramWebhookController extends Controller
                     'id' => $chatId,
                     'type' => 'private',
                 ],
-                'text' => $command,
+                'text' => $commandText,
                 'date' => time(),
             ];
             
@@ -519,12 +555,12 @@ class TelegramWebhookController extends Controller
             $handled = $this->commandRouter->route($fakeMessage, $user);
             
             if (!$handled) {
-                $this->telegram->sendMessage($chatId, '❓ Unknown command callback: ' . $command);
+                $this->telegram->sendMessage($chatId, '❓ Unknown command callback: ' . $commandText);
             }
             
             Log::info('Command callback handled', [
                 'user_id' => $userId,
-                'command' => $command,
+                'command' => $commandText,
                 'original_data' => $data,
             ]);
             
