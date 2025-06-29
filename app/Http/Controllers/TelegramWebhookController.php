@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CategoryLearningService;
 use App\Services\TelegramService;
 use App\Telegram\CommandRouter;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -143,6 +144,9 @@ class TelegramWebhookController extends Controller
         } elseif (strpos($data, 'set_timezone:') === 0) {
             // Handle timezone selection
             $this->handleTimezoneSelection($chatId, $messageId, $userId, $data);
+        } elseif (strpos($data, 'export_') === 0) {
+            // Handle export callbacks
+            $this->handleExportCallback($chatId, $messageId, $userId, $data);
         } elseif ($data === 'cancel') {
             // Handle generic cancel
             $user = \App\Models\User::where('telegram_id', $userId)->first();
@@ -683,6 +687,190 @@ class TelegramWebhookController extends Controller
             
             $user = \App\Models\User::where('telegram_id', $userId)->first();
             $this->telegram->editMessage($chatId, $messageId, trans('telegram.timezone_update_failed', [], $user->language ?? 'es'));
+        }
+    }
+
+    /**
+     * Handle export callbacks
+     */
+    private function handleExportCallback(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            // Get user
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.user_not_found', [], 'es'));
+                return;
+            }
+
+            // Handle export format selection
+            if (str_starts_with($data, 'export_format_')) {
+                $format = str_replace('export_format_', '', $data);
+                
+                // Show period selection for the chosen format
+                $keyboard = [
+                    [
+                        ['text' => trans('telegram.export_current_month', [], $user->language), 
+                         'callback_data' => "export_period_{$format}_month"],
+                    ],
+                    [
+                        ['text' => trans('telegram.export_last_month', [], $user->language), 
+                         'callback_data' => "export_period_{$format}_lastmonth"],
+                    ],
+                    [
+                        ['text' => trans('telegram.export_last_3_months', [], $user->language), 
+                         'callback_data' => "export_period_{$format}_3months"],
+                    ],
+                    [
+                        ['text' => trans('telegram.export_current_year', [], $user->language), 
+                         'callback_data' => "export_period_{$format}_year"],
+                    ],
+                    [
+                        ['text' => trans('telegram.export_all_time', [], $user->language), 
+                         'callback_data' => "export_period_{$format}_all"],
+                    ],
+                    [
+                        ['text' => trans('telegram.button_cancel', [], $user->language), 
+                         'callback_data' => 'cancel'],
+                    ],
+                ];
+
+                $this->telegram->editMessage(
+                    $chatId, 
+                    $messageId,
+                    trans('telegram.export_period_selection', [], $user->language),
+                    [
+                        'parse_mode' => 'Markdown',
+                        'reply_markup' => json_encode(['inline_keyboard' => $keyboard])
+                    ]
+                );
+                return;
+            }
+
+            // Handle quick export (this month)
+            if ($data === 'export_quick_month') {
+                $format = 'pdf';
+                $period = 'month';
+            } else if (str_starts_with($data, 'export_period_')) {
+                // Extract format and period
+                $parts = explode('_', str_replace('export_period_', '', $data));
+                $format = $parts[0];
+                $period = $parts[1] ?? 'month';
+            } else {
+                return;
+            }
+
+            // Determine date range
+            $timezone = $user->getTimezone();
+            $dateRange = $this->getExportDateRange($period, $timezone, $user);
+
+            // Check if user has expenses in this period
+            $expenseCount = $user->expenses()
+                ->whereBetween('expense_date', [$dateRange['start'], $dateRange['end']])
+                ->where('status', 'confirmed')
+                ->count();
+
+            if ($expenseCount === 0) {
+                $this->telegram->editMessage(
+                    $chatId, 
+                    $messageId,
+                    trans('telegram.export_no_expenses', ['period' => $dateRange['name']], $user->language)
+                );
+                return;
+            }
+
+            // Update message to show generating
+            $this->telegram->editMessage(
+                $chatId,
+                $messageId,
+                trans('telegram.export_generating', [
+                    'format' => strtoupper($format),
+                    'period' => $dateRange['name']
+                ], $user->language),
+                ['parse_mode' => 'Markdown']
+            );
+
+            // Queue export job
+            \App\Jobs\GenerateExpenseExport::dispatch(
+                $user,
+                $format,
+                $dateRange['start'],
+                $dateRange['end']
+            );
+
+            Log::info('Export queued', [
+                'user_id' => $user->id,
+                'format' => $format,
+                'period' => $period,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to handle export callback', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_telegram_id' => $userId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.export_error', [], $user->language ?? 'es'));
+        }
+    }
+
+    /**
+     * Get date range for export
+     */
+    private function getExportDateRange(string $period, string $timezone, ?User $user = null): array
+    {
+        switch ($period) {
+            case 'month':
+                return [
+                    'start' => Carbon::now($timezone)->startOfMonth(),
+                    'end' => Carbon::now($timezone)->endOfMonth(),
+                    'name' => Carbon::now($timezone)->format('F Y'),
+                ];
+
+            case 'lastmonth':
+                $lastMonth = Carbon::now($timezone)->subMonth();
+                return [
+                    'start' => $lastMonth->copy()->startOfMonth(),
+                    'end' => $lastMonth->copy()->endOfMonth(),
+                    'name' => $lastMonth->format('F Y'),
+                ];
+
+            case '3months':
+                return [
+                    'start' => Carbon::now($timezone)->subMonths(3)->startOfMonth(),
+                    'end' => Carbon::now($timezone)->endOfMonth(),
+                    'name' => trans('telegram.export_last_3_months'),
+                ];
+
+            case 'year':
+                return [
+                    'start' => Carbon::now($timezone)->startOfYear(),
+                    'end' => Carbon::now($timezone)->endOfYear(),
+                    'name' => Carbon::now($timezone)->year,
+                ];
+
+            case 'all':
+                if ($user) {
+                    $firstExpense = $user->expenses()->min('expense_date');
+                    $startDate = $firstExpense ? Carbon::parse($firstExpense, $timezone) : Carbon::now($timezone)->subYear();
+                } else {
+                    $startDate = Carbon::now($timezone)->subYear();
+                }
+                return [
+                    'start' => $startDate,
+                    'end' => Carbon::now($timezone),
+                    'name' => trans('telegram.export_all_time'),
+                ];
+
+            default:
+                // Default to current month
+                return [
+                    'start' => Carbon::now($timezone)->startOfMonth(),
+                    'end' => Carbon::now($timezone)->endOfMonth(),
+                    'name' => Carbon::now($timezone)->format('F Y'),
+                ];
         }
     }
 }

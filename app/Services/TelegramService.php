@@ -296,4 +296,38 @@ class TelegramService
 
         return $response->json();
     }
+
+    /**
+     * Send document to user
+     */
+    public function sendDocument(string $chatId, string $filePath, string $caption = '', array $options = []): array
+    {
+        try {
+            $response = Http::attach(
+                'document',
+                file_get_contents($filePath),
+                basename($filePath)
+            )->post("{$this->apiUrl}/sendDocument", array_merge([
+                'chat_id' => $chatId,
+                'caption' => $caption,
+                'parse_mode' => 'Markdown',
+            ], $options));
+
+            Log::info('Document sent via Telegram', [
+                'chat_id' => $chatId,
+                'file' => basename($filePath),
+                'response' => $response->json(),
+            ]);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('Failed to send document via Telegram', [
+                'chat_id' => $chatId,
+                'file' => $filePath,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
 }

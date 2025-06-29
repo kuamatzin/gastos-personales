@@ -21,18 +21,16 @@ class ExportCommand extends Command
             }
 
             // Show export options
-            $message = "📤 *Export Expenses*\n\n";
-            $message .= "Select export format and period:\n\n";
-            $message .= "*Formats available:*\n";
-            $message .= "• 📊 Excel - Detailed spreadsheet with charts\n";
-            $message .= "• 📄 PDF - Formatted report with summaries\n";
-            $message .= "• 💾 CSV - Raw data for analysis\n\n";
-            $message .= '_Choose an option below:_';
+            $message = $this->trans('telegram.export_header') . "\n\n";
+            $message .= $this->trans('telegram.export_select_format') . "\n\n";
+            $message .= "*" . $this->trans('telegram.export_formats_available') . "*\n";
+            $message .= "• 📄 PDF - " . $this->trans('telegram.export_pdf_description') . "\n";
+            $message .= "• 💾 CSV - " . $this->trans('telegram.export_csv_description') . "\n\n";
+            $message .= '_' . $this->trans('telegram.export_choose_option') . '_';
 
             // Format selection keyboard
             $keyboard = [
                 [
-                    ['text' => $this->trans('telegram.button_excel'), 'callback_data' => 'export_format_excel'],
                     ['text' => $this->trans('telegram.button_pdf'), 'callback_data' => 'export_format_pdf'],
                     ['text' => $this->trans('telegram.button_csv'), 'callback_data' => 'export_format_csv'],
                 ],
@@ -40,7 +38,7 @@ class ExportCommand extends Command
                     ['text' => $this->trans('telegram.button_quick_export'), 'callback_data' => 'export_quick_month'],
                 ],
                 [
-                    ['text' => $this->trans('telegram.button_cancel'), 'callback_data' => 'cmd_cancel'],
+                    ['text' => $this->trans('telegram.button_cancel'), 'callback_data' => 'cancel'],
                 ],
             ];
 
@@ -55,7 +53,7 @@ class ExportCommand extends Command
             ]);
 
             // Send a simple fallback message
-            $this->reply("❌ Sorry, I couldn't process the export request. Please try again later.");
+            $this->reply($this->trans('telegram.export_error'));
         }
     }
 
@@ -68,12 +66,12 @@ class ExportCommand extends Command
         // Examples: "excel month", "csv today", "pdf week"
         $parts = explode(' ', strtolower(trim($params)));
 
-        $format = $parts[0] ?? 'excel';
+        $format = $parts[0] ?? 'pdf';
         $period = $parts[1] ?? 'month';
 
         // Validate format
-        if (! in_array($format, ['excel', 'pdf', 'csv'])) {
-            $this->reply('❌ Invalid format. Use: excel, pdf, or csv');
+        if (! in_array($format, ['pdf', 'csv'])) {
+            $this->reply($this->trans('telegram.export_invalid_format'));
 
             return;
         }
@@ -82,7 +80,7 @@ class ExportCommand extends Command
         $dateRange = $this->getDateRange($period);
 
         if (! $dateRange) {
-            $this->reply('❌ Invalid period. Use: today, week, month, or year');
+            $this->reply($this->trans('telegram.export_invalid_period'));
 
             return;
         }
@@ -94,7 +92,7 @@ class ExportCommand extends Command
             ->count();
 
         if ($expenseCount === 0) {
-            $this->reply("📊 No expenses found for {$dateRange['name']}");
+            $this->reply($this->trans('telegram.export_no_expenses', ['period' => $dateRange['name']]));
 
             return;
         }
@@ -108,37 +106,39 @@ class ExportCommand extends Command
      */
     private function getDateRange(string $period): ?array
     {
+        $timezone = $this->user->getTimezone();
+        
         switch ($period) {
             case 'today':
             case 'hoy':
                 return [
-                    'start' => Carbon::today(),
-                    'end' => Carbon::today()->endOfDay(),
+                    'start' => Carbon::today($timezone),
+                    'end' => Carbon::today($timezone)->endOfDay(),
                     'name' => 'today',
                 ];
 
             case 'week':
             case 'semana':
                 return [
-                    'start' => Carbon::now()->startOfWeek(),
-                    'end' => Carbon::now()->endOfWeek(),
+                    'start' => Carbon::now($timezone)->startOfWeek(),
+                    'end' => Carbon::now($timezone)->endOfWeek(),
                     'name' => 'this week',
                 ];
 
             case 'month':
             case 'mes':
                 return [
-                    'start' => Carbon::now()->startOfMonth(),
-                    'end' => Carbon::now()->endOfMonth(),
-                    'name' => Carbon::now()->format('F Y'),
+                    'start' => Carbon::now($timezone)->startOfMonth(),
+                    'end' => Carbon::now($timezone)->endOfMonth(),
+                    'name' => Carbon::now($timezone)->format('F Y'),
                 ];
 
             case 'year':
             case 'año':
                 return [
-                    'start' => Carbon::now()->startOfYear(),
-                    'end' => Carbon::now()->endOfYear(),
-                    'name' => 'year '.Carbon::now()->year,
+                    'start' => Carbon::now($timezone)->startOfYear(),
+                    'end' => Carbon::now($timezone)->endOfYear(),
+                    'name' => 'year '.Carbon::now($timezone)->year,
                 ];
 
             case 'all':
@@ -146,8 +146,8 @@ class ExportCommand extends Command
                 $firstExpense = $this->user->expenses()->min('expense_date');
 
                 return [
-                    'start' => $firstExpense ? Carbon::parse($firstExpense) : Carbon::now()->subYear(),
-                    'end' => Carbon::now(),
+                    'start' => $firstExpense ? Carbon::parse($firstExpense, $timezone) : Carbon::now($timezone)->subYear(),
+                    'end' => Carbon::now($timezone),
                     'name' => 'all time',
                 ];
 
@@ -161,9 +161,12 @@ class ExportCommand extends Command
      */
     private function queueExport(string $format, array $dateRange): void
     {
-        $this->replyWithMarkdown(
-            "🔄 Generating your {$format} export for {$dateRange['name']}...\n\n".
-            "_This may take a few moments. I'll send you the file when it's ready._"
+        $this->reply(
+            $this->trans('telegram.export_generating', [
+                'format' => strtoupper($format),
+                'period' => $dateRange['name']
+            ]),
+            ['parse_mode' => 'Markdown']
         );
 
         // Dispatch export job
