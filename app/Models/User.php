@@ -28,6 +28,7 @@ class User extends Authenticatable
         'telegram_last_name',
         'is_active',
         'preferences',
+        'timezone',
     ];
 
     /**
@@ -63,5 +64,58 @@ class User extends Authenticatable
     public function categoryLearning(): HasMany
     {
         return $this->hasMany(CategoryLearning::class);
+    }
+
+    /**
+     * Get the user's timezone.
+     */
+    public function getTimezone(): string
+    {
+        return $this->timezone ?? 'America/Mexico_City';
+    }
+
+    /**
+     * Get expenses for a specific date in the user's timezone.
+     */
+    public function expensesForDate(\DateTime|string $date): HasMany
+    {
+        if (is_string($date)) {
+            $date = new \DateTime($date, new \DateTimeZone($this->getTimezone()));
+        }
+        
+        return $this->expenses()->whereDate('expense_date', $date->format('Y-m-d'));
+    }
+
+    /**
+     * Get today's expenses in the user's timezone.
+     */
+    public function expensesToday(): HasMany
+    {
+        $today = now($this->getTimezone())->startOfDay();
+        return $this->expensesForDate($today);
+    }
+
+    /**
+     * Get this month's expenses in the user's timezone.
+     */
+    public function expensesThisMonth(): HasMany
+    {
+        $now = now($this->getTimezone());
+        return $this->expenses()
+            ->whereYear('expense_date', $now->year)
+            ->whereMonth('expense_date', $now->month);
+    }
+
+    /**
+     * Get this week's expenses in the user's timezone.
+     */
+    public function expensesThisWeek(): HasMany
+    {
+        $now = now($this->getTimezone());
+        $startOfWeek = $now->copy()->startOfWeek();
+        $endOfWeek = $now->copy()->endOfWeek();
+        
+        return $this->expenses()
+            ->whereBetween('expense_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')]);
     }
 }

@@ -50,7 +50,7 @@ class ProcessExpenseText extends BaseExpenseProcessor
             $expenseData = $openAIService->extractExpenseData($this->text);
 
             // Step 1.5: Validate/extract date using DateParser as fallback
-            if (!isset($expenseData['date']) || $expenseData['date'] === now()->toDateString()) {
+            if (!isset($expenseData['date']) || $expenseData['date'] === now($user->getTimezone())->toDateString()) {
                 // If OpenAI didn't find a date or used today's date, try our parser
                 $parsedDate = $dateParser->extractDateFromText($this->text);
                 if ($parsedDate) {
@@ -85,7 +85,7 @@ class ProcessExpenseText extends BaseExpenseProcessor
                     'description' => $expenseData['description'],
                     'category_id' => $expenseData['category_id'],
                     'suggested_category_id' => $expenseData['category_id'],
-                    'expense_date' => $expenseData['date'] ?? now()->toDateString(),
+                    'expense_date' => $expenseData['date'] ?? now($user->getTimezone())->toDateString(),
                     'raw_input' => $this->text,
                     'confidence_score' => $expenseData['confidence'] ?? 0.8,
                     'category_confidence' => $expenseData['category_confidence'] ?? 0.8,

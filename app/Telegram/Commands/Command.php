@@ -170,7 +170,7 @@ abstract class Command
         }
 
         try {
-            // Try various date formats
+            // Try various date formats with user's timezone
             $formats = [
                 'd/m/Y',
                 'd-m-Y',
@@ -181,14 +181,14 @@ abstract class Command
 
             foreach ($formats as $format) {
                 try {
-                    return \Carbon\Carbon::createFromFormat($format, $params);
+                    return \Carbon\Carbon::createFromFormat($format, $params, $this->user->getTimezone());
                 } catch (\Exception $e) {
                     continue;
                 }
             }
 
-            // Try natural language parsing
-            return \Carbon\Carbon::parse($params);
+            // Try natural language parsing with user's timezone
+            return \Carbon\Carbon::parse($params, $this->user->getTimezone());
 
         } catch (\Exception $e) {
             return null;
@@ -201,7 +201,7 @@ abstract class Command
     protected function parseMonth(string $params): ?\Carbon\Carbon
     {
         if (empty($params)) {
-            return \Carbon\Carbon::now()->startOfMonth();
+            return \Carbon\Carbon::now($this->user->getTimezone())->startOfMonth();
         }
 
         $params = strtolower(trim($params));
@@ -228,9 +228,9 @@ abstract class Command
         }
 
         try {
-            // Try parsing as month name
+            // Try parsing as month name with user's timezone
             if (in_array($params, array_values($spanishMonths))) {
-                return \Carbon\Carbon::parse($params)->startOfMonth();
+                return \Carbon\Carbon::parse($params, $this->user->getTimezone())->startOfMonth();
             }
 
             // Try parsing as date

@@ -2,6 +2,8 @@
 
 namespace App\Telegram\Commands;
 
+use Carbon\Carbon;
+
 class ExpensesMonthCommand extends Command
 {
     protected string $name = 'expenses_month';
@@ -26,18 +28,26 @@ class ExpensesMonthCommand extends Command
             $lastMonth = $targetMonth->copy()->subMonth();
             $lastMonthEnd = $lastMonth->copy()->endOfMonth();
 
-            // Get expenses for target month
-            $expenses = $this->user->expenses()
-                ->with('category.parent')
-                ->whereBetween('expense_date', [$targetMonth, $monthEnd])
-                ->where('status', 'confirmed')
-                ->orderBy('expense_date', 'desc')
-                ->get();
+            // Get expenses for target month (if current month, use the optimized method)
+            if ($targetMonth->isSameMonth(Carbon::now($this->user->getTimezone()))) {
+                $expenses = $this->user->expensesThisMonth()
+                    ->with('category.parent')
+                    ->where('status', 'confirmed')
+                    ->orderBy('expense_date', 'desc')
+                    ->get();
+            } else {
+                $expenses = $this->user->expenses()
+                    ->with('category.parent')
+                    ->whereBetween('expense_date', [$targetMonth->format('Y-m-d'), $monthEnd->format('Y-m-d')])
+                    ->where('status', 'confirmed')
+                    ->orderBy('expense_date', 'desc')
+                    ->get();
+            }
 
             // Get last month's expenses for comparison
             $lastMonthExpenses = $this->user->expenses()
                 ->with('category.parent')
-                ->whereBetween('expense_date', [$lastMonth, $lastMonthEnd])
+                ->whereBetween('expense_date', [$lastMonth->format('Y-m-d'), $lastMonthEnd->format('Y-m-d')])
                 ->where('status', 'confirmed')
                 ->get();
 

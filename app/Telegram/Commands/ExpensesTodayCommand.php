@@ -13,12 +13,12 @@ class ExpensesTodayCommand extends Command
         try {
             $this->sendTyping();
 
-            $today = Carbon::today();
+            // Get today in user's timezone
+            $today = Carbon::now($this->user->getTimezone())->startOfDay();
 
-            // Get today's expenses
-            $expenses = $this->user->expenses()
+            // Get today's expenses using the timezone-aware method
+            $expenses = $this->user->expensesToday()
                 ->with('category.parent')
-                ->whereDate('expense_date', $today)
                 ->where('status', 'confirmed')
                 ->orderBy('created_at', 'desc')
                 ->get();

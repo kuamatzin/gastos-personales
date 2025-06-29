@@ -12,6 +12,7 @@ use App\Telegram\Commands\ExpensesWeekCommand;
 use App\Telegram\Commands\ExportCommand;
 use App\Telegram\Commands\HelpCommand;
 use App\Telegram\Commands\SetLanguageCommand;
+use App\Telegram\Commands\SetTimezoneCommand;
 use App\Telegram\Commands\StartCommand;
 use App\Telegram\Commands\StatsCommand;
 use App\Telegram\Commands\TopCategoriesCommand;
@@ -35,6 +36,7 @@ class CommandRouter
         '/stats' => StatsCommand::class,
         '/cancel' => CancelCommand::class,
         '/language' => SetLanguageCommand::class,
+        '/timezone' => SetTimezoneCommand::class,
     ];
 
     /**
@@ -72,6 +74,10 @@ class CommandRouter
         '/lang' => '/language',
         '/exportar' => '/export',
         '/cancelar' => '/cancel',
+        '/tz' => '/timezone',
+        '/zona_horaria' => '/timezone',
+        '/zonahoraria' => '/timezone',
+        '/set_timezone' => '/timezone',
     ];
 
     private TelegramService $telegram;

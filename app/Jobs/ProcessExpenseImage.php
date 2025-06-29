@@ -79,7 +79,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                     'description' => $expenseData['description'],
                     'category_id' => $expenseData['category_id'],
                     'suggested_category_id' => $expenseData['category_id'],
-                    'expense_date' => $expenseData['date'] ?? now()->toDateString(),
+                    'expense_date' => $expenseData['date'] ?? now($user->getTimezone())->toDateString(),
                     'raw_input' => $extractedText,
                     'confidence_score' => $expenseData['confidence'] ?? 0.7, // Lower confidence for OCR
                     'category_confidence' => $expenseData['category_confidence'] ?? 0.7,
