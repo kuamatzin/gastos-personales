@@ -137,6 +137,15 @@ class TelegramWebhookController extends Controller
         } elseif (strpos($data, 'language_') === 0) {
             // Handle language selection
             $this->handleLanguageSelection($chatId, $messageId, $userId, $data);
+        } elseif (strpos($data, 'cmd_') === 0) {
+            // Handle command callbacks
+            $this->handleCommandCallback($chatId, $messageId, $userId, $data);
+        } elseif (strpos($data, 'set_timezone:') === 0) {
+            // Handle timezone selection
+            $this->handleTimezoneSelection($chatId, $messageId, $userId, $data);
+        } elseif ($data === 'cancel') {
+            // Handle generic cancel
+            $this->telegram->editMessage($chatId, $messageId, '❌ Cancelled.');
         }
         // Add more callback handlers as needed
     }
@@ -476,6 +485,61 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Handle command callbacks (e.g., cmd_expenses_month)
+     */
+    private function handleCommandCallback(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            // Get user
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                $this->telegram->sendMessage($chatId, '❌ User not found.');
+                return;
+            }
+
+            // Extract command from callback data
+            $command = '/' . str_replace('cmd_', '', $data);
+            
+            // Create a fake message structure for the command router
+            $fakeMessage = [
+                'message_id' => $messageId,
+                'from' => [
+                    'id' => $userId,
+                    'is_bot' => false,
+                ],
+                'chat' => [
+                    'id' => $chatId,
+                    'type' => 'private',
+                ],
+                'text' => $command,
+                'date' => time(),
+            ];
+            
+            // Route the command
+            $handled = $this->commandRouter->route($fakeMessage, $user);
+            
+            if (!$handled) {
+                $this->telegram->sendMessage($chatId, '❓ Unknown command callback: ' . $command);
+            }
+            
+            Log::info('Command callback handled', [
+                'user_id' => $userId,
+                'command' => $command,
+                'original_data' => $data,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to handle command callback', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_telegram_id' => $userId,
+            ]);
+            
+            $this->telegram->sendMessage($chatId, '❌ Failed to process command. Please try again.');
+        }
+    }
+
+    /**
      * Handle language selection callback
      */
     private function handleLanguageSelection(string $chatId, int $messageId, string $userId, string $data)
@@ -515,6 +579,51 @@ class TelegramWebhookController extends Controller
             ]);
 
             $this->telegram->editMessage($chatId, $messageId, '❌ Failed to update language. Please try again.');
+        }
+    }
+
+    /**
+     * Handle timezone selection callback
+     */
+    private function handleTimezoneSelection(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            // Extract timezone from callback data
+            $timezone = str_replace('set_timezone:', '', $data);
+            
+            // Get user
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                $this->telegram->editMessage($chatId, $messageId, '❌ User not found.');
+                return;
+            }
+            
+            // Update user's timezone
+            $user->update(['timezone' => $timezone]);
+            
+            // Get current time in new timezone
+            $currentTime = now($timezone)->format('H:i');
+            
+            $this->telegram->editMessage($chatId, $messageId,
+                "✅ Zona horaria actualizada a: *{$timezone}*\n\n" .
+                "🕐 Hora actual en tu zona: {$currentTime}\n\n" .
+                "Todos tus gastos se registrarán con la fecha correcta según tu zona horaria.",
+                ['parse_mode' => 'Markdown']
+            );
+            
+            Log::info('User timezone updated', [
+                'user_id' => $user->id,
+                'timezone' => $timezone,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to update timezone', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_telegram_id' => $userId,
+            ]);
+            
+            $this->telegram->editMessage($chatId, $messageId, '❌ Failed to update timezone. Please try again.');
         }
     }
 }
