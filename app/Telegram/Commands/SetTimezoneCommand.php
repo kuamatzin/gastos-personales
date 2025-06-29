@@ -2,10 +2,6 @@
 
 namespace App\Telegram\Commands;
 
-use App\Models\User;
-use App\Telegram\Contracts\Command;
-use Telegram\Bot\Api;
-
 class SetTimezoneCommand extends Command
 {
     protected string $name = 'timezone';
@@ -14,30 +10,31 @@ class SetTimezoneCommand extends Command
 
     // Common Mexican timezones
     private const TIMEZONES = [
-        'Mexico/General' => 'Ciudad de México, Guadalajara, Monterrey',
-        'Mexico/BajaNorte' => 'Tijuana, Mexicali',
-        'Mexico/BajaSur' => 'La Paz, Cabo San Lucas',
+        'America/Mexico_City' => 'Ciudad de México, Guadalajara, Monterrey',
+        'America/Tijuana' => 'Tijuana, Mexicali',
+        'America/Mazatlan' => 'Mazatlán, La Paz, Cabo San Lucas',
         'America/Cancun' => 'Cancún, Playa del Carmen',
     ];
 
-    public function handle(Api $telegram, User $user, array $arguments): void
+    public function handle(array $message, string $params = ''): void
     {
-        if (empty($arguments)) {
-            $this->showTimezoneMenu($telegram, $user);
+        if (empty($params)) {
+            $this->showTimezoneMenu();
             return;
         }
 
         // If user provided a timezone argument
-        $timezone = trim(implode(' ', $arguments));
+        $timezone = trim($params);
         
         // Map common names to actual timezone IDs
         $timezoneMap = [
             'cdmx' => 'America/Mexico_City',
             'ciudad de mexico' => 'America/Mexico_City',
             'mexico' => 'America/Mexico_City',
-            'tijuana' => 'Mexico/BajaNorte',
+            'tijuana' => 'America/Tijuana',
             'cancun' => 'America/Cancun',
-            'la paz' => 'Mexico/BajaSur',
+            'mazatlan' => 'America/Mazatlan',
+            'la paz' => 'America/Mazatlan',
         ];
 
         $normalizedInput = strtolower($timezone);
@@ -45,34 +42,37 @@ class SetTimezoneCommand extends Command
 
         // Validate timezone
         if (!in_array($actualTimezone, timezone_identifiers_list())) {
-            $telegram->sendMessage([
-                'chat_id' => $user->telegram_id,
-                'text' => "❌ Zona horaria inválida: *{$timezone}*\n\n" .
-                         "Por favor selecciona una de las opciones o escribe una zona horaria válida.",
-                'parse_mode' => 'Markdown',
-            ]);
-            $this->showTimezoneMenu($telegram, $user);
+            $this->reply(
+                "❌ Zona horaria inválida: *{$timezone}*\n\n" .
+                "Por favor selecciona una de las opciones o escribe una zona horaria válida.",
+                ['parse_mode' => 'Markdown']
+            );
+            $this->showTimezoneMenu();
             return;
         }
 
         // Update user's timezone
-        $user->update(['timezone' => $actualTimezone]);
+        $this->user->update(['timezone' => $actualTimezone]);
 
         // Get current time in new timezone
         $currentTime = now($actualTimezone)->format('H:i');
         
-        $telegram->sendMessage([
-            'chat_id' => $user->telegram_id,
-            'text' => "✅ Zona horaria actualizada a: *{$actualTimezone}*\n\n" .
-                     "🕐 Hora actual en tu zona: {$currentTime}\n\n" .
-                     "Todos tus gastos se registrarán con la fecha correcta según tu zona horaria.",
-            'parse_mode' => 'Markdown',
+        $this->reply(
+            "✅ Zona horaria actualizada a: *{$actualTimezone}*\n\n" .
+            "🕐 Hora actual en tu zona: {$currentTime}\n\n" .
+            "Todos tus gastos se registrarán con la fecha correcta según tu zona horaria.",
+            ['parse_mode' => 'Markdown']
+        );
+        
+        $this->logExecution('timezone_updated', [
+            'old_timezone' => $this->user->getOriginal('timezone'),
+            'new_timezone' => $actualTimezone
         ]);
     }
 
-    private function showTimezoneMenu(Api $telegram, User $user): void
+    private function showTimezoneMenu(): void
     {
-        $currentTimezone = $user->getTimezone();
+        $currentTimezone = $this->user->getTimezone();
         $currentTime = now($currentTimezone)->format('H:i (l, F j)');
         
         $keyboard = [];
@@ -91,16 +91,15 @@ class SetTimezoneCommand extends Command
             'callback_data' => 'cancel'
         ]];
 
-        $telegram->sendMessage([
-            'chat_id' => $user->telegram_id,
-            'text' => "🌍 *Configuración de Zona Horaria*\n\n" .
-                     "Zona horaria actual: *{$currentTimezone}*\n" .
-                     "Hora actual: {$currentTime}\n\n" .
-                     "Selecciona tu zona horaria:",
-            'parse_mode' => 'Markdown',
-            'reply_markup' => json_encode([
-                'inline_keyboard' => $keyboard
-            ]),
-        ]);
+        $this->replyWithKeyboard(
+            "🌍 *Configuración de Zona Horaria*\n\n" .
+            "Zona horaria actual: *{$currentTimezone}*\n" .
+            "Hora actual: {$currentTime}\n\n" .
+            "Selecciona tu zona horaria:",
+            $keyboard,
+            ['parse_mode' => 'Markdown']
+        );
+        
+        $this->logExecution('show_menu', ['current_timezone' => $currentTimezone]);
     }
 }
