@@ -3,7 +3,7 @@
 return [
     'welcome' => "¡Bienvenido a ExpenseBot! 🎉\n\nTe ayudaré a registrar tus gastos. Solo envíame:\n• Texto con el monto y descripción\n• Notas de voz\n• Fotos de recibos\n\nUsa /ayuda para ver todos los comandos disponibles.",
 
-    'help' => "Comandos disponibles:\n\n📊 *Reportes*\n/gastos_hoy - Gastos de hoy\n/gastos_semana - Gastos de esta semana\n/gastos_mes - Gastos de este mes\n/gastos_categoria - Gastos por categoría\n/categorias_top - Categorías con más gastos\n/estadisticas - Estadísticas y análisis\n\n📤 *Exportar*\n/exportar - Exportar tus gastos\n\n⚙️ *Configuración*\n/idioma - Cambiar idioma\n/cancelar - Cancelar operación actual\n\n*Cómo agregar gastos:*\nSolo envíame un mensaje con el monto y descripción. Por ejemplo:\n• \"50 café\"\n• \"$120 despensa\"\n• Nota de voz describiendo tu gasto\n• Foto de un recibo",
+    'help' => "Comandos disponibles:\n\n📊 *Reportes*\n/gastos_hoy - Gastos de hoy\n/gastos_semana - Gastos de esta semana\n/gastos_mes - Gastos de este mes\n/gastos_categoria - Gastos por categoría\n/categorias_top - Categorías con más gastos\n/estadisticas - Estadísticas y análisis\n\n📤 *Exportar*\n/exportar - Exportar tus gastos\n\n⚙️ *Configuración*\n/idioma - Cambiar idioma\n/timezone - Configurar zona horaria\n/cancelar - Cancelar operación actual\n\n*Cómo agregar gastos:*\nSolo envíame un mensaje con el monto y descripción. Por ejemplo:\n• \"50 café\"\n• \"$120 despensa\"\n• Nota de voz describiendo tu gasto\n• Foto de un recibo\n\n🌍 *Zona Horaria:* Los gastos se registran según tu zona horaria configurada. Usa /timezone para cambiarla.",
 
     'expense_saved' => "✅ ¡Gasto guardado exitosamente!\n\n💰 Monto: $:amount\n📝 Descripción: :description\n🏷 Categoría: :category\n📅 Fecha: :date",
 
@@ -44,6 +44,13 @@ return [
 
     'language_selection' => 'Por favor selecciona tu idioma preferido:',
     'language_updated' => '✅ ¡Idioma actualizado exitosamente!',
+    
+    // Timezone messages
+    'timezone_setup_prompt' => "🌍 *Configuración de Zona Horaria*\n\nPara registrar tus gastos con la fecha correcta, selecciona tu zona horaria:\n\n_Puedes cambiar esto más tarde con el comando /timezone_",
+    'timezone_mexico_city' => '🇲🇽 Ciudad de México (Central)',
+    'timezone_tijuana' => '🇲🇽 Tijuana (Pacífico)',
+    'timezone_cancun' => '🇲🇽 Cancún (Este)',
+    'timezone_configure_later' => '⚙️ Configurar más tarde',
 
     'error_processing' => '❌ Error al procesar tu solicitud. Por favor intenta de nuevo.',
     'error_invalid_amount' => '❌ No se pudo detectar un monto válido. Por favor incluye un número en tu mensaje.',

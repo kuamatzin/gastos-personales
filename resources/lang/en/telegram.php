@@ -3,7 +3,7 @@
 return [
     'welcome' => "Welcome to ExpenseBot! 🎉\n\nI'll help you track your expenses. Just send me:\n• Text with the amount and description\n• Voice notes\n• Photos of receipts\n\nUse /help to see all available commands.",
 
-    'help' => "Available commands:\n\n📊 *Reports*\n/expenses_today - Today's expenses\n/expenses_week - This week's expenses\n/expenses_month - This month's expenses\n/category_spending - Spending by category\n/top_categories - Top spending categories\n/stats - Statistics and insights\n\n📤 *Export*\n/export - Export your expenses\n\n⚙️ *Settings*\n/language - Change language\n/cancel - Cancel current operation\n\n*How to add expenses:*\nJust send me a message with the amount and description. For example:\n• \"50 coffee\"\n• \"$120 groceries\"\n• Voice note describing your expense\n• Photo of a receipt",
+    'help' => "Available commands:\n\n📊 *Reports*\n/expenses_today - Today's expenses\n/expenses_week - This week's expenses\n/expenses_month - This month's expenses\n/category_spending - Spending by category\n/top_categories - Top spending categories\n/stats - Statistics and insights\n\n📤 *Export*\n/export - Export your expenses\n\n⚙️ *Settings*\n/language - Change language\n/timezone - Set timezone\n/cancel - Cancel current operation\n\n*How to add expenses:*\nJust send me a message with the amount and description. For example:\n• \"50 coffee\"\n• \"$120 groceries\"\n• Voice note describing your expense\n• Photo of a receipt\n\n🌍 *Timezone:* Expenses are recorded according to your configured timezone. Use /timezone to change it.",
 
     'expense_saved' => "✅ Expense saved successfully!\n\n💰 Amount: $:amount\n📝 Description: :description\n🏷 Category: :category\n📅 Date: :date",
 
@@ -44,6 +44,13 @@ return [
 
     'language_selection' => 'Please select your preferred language:',
     'language_updated' => '✅ Language updated successfully!',
+    
+    // Timezone messages
+    'timezone_setup_prompt' => "🌍 *Timezone Setup*\n\nTo record your expenses with the correct date, please select your timezone:\n\n_You can change this later with the /timezone command_",
+    'timezone_mexico_city' => '🇲🇽 Mexico City (Central)',
+    'timezone_tijuana' => '🇲🇽 Tijuana (Pacific)',
+    'timezone_cancun' => '🇲🇽 Cancun (Eastern)',
+    'timezone_configure_later' => '⚙️ Configure later',
 
     'error_processing' => '❌ Error processing your request. Please try again.',
     'error_invalid_amount' => '❌ Could not detect a valid amount. Please include a number in your message.',

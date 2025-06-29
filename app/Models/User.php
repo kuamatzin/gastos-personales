@@ -29,6 +29,7 @@ class User extends Authenticatable
         'is_active',
         'preferences',
         'timezone',
+        'started_at',
     ];
 
     /**
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'preferences' => 'array',
+            'started_at' => 'datetime',
         ];
     }
 
