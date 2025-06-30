@@ -88,7 +88,7 @@ class ProcessExpenseImage extends BaseExpenseProcessor
                 Log::info('Receipt parser low confidence, using OpenAI', [
                     'parser_confidence' => $receiptData['confidence']
                 ]);
-                $expenseData = $openAIService->extractExpenseData($extractedText);
+                $expenseData = $openAIService->extractExpenseData($extractedText, $user->getTimezone());
             }
 
             // Step 5: Infer category if not already set

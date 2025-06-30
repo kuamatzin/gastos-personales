@@ -30,9 +30,14 @@ class OpenAIService
     /**
      * Extract expense data from user input text
      */
-    public function extractExpenseData(string $text): array
+    public function extractExpenseData(string $text, string $timezone = 'UTC'): array
     {
         $categories = $this->getCategoryList();
+        
+        // Use Carbon for timezone-aware date calculations
+        $now = \Carbon\Carbon::now($timezone);
+        $yesterday = $now->copy()->subDay();
+        $dayBeforeYesterday = $now->copy()->subDays(2);
 
         $prompt = "Extract expense information from the following text and return ONLY valid JSON:
 
@@ -53,12 +58,12 @@ Expected format:
 
 Rules:
 - Parse dates carefully:
-  - 'ayer' or 'yesterday' = ".date('Y-m-d', strtotime('-1 day'))."
-  - 'antier' or 'anteayer' = ".date('Y-m-d', strtotime('-2 days'))."
-  - 'hoy' or 'today' = ".date('Y-m-d')."
+  - 'ayer' or 'yesterday' = ".$yesterday->format('Y-m-d')."
+  - 'antier' or 'anteayer' = ".$dayBeforeYesterday->format('Y-m-d')."
+  - 'hoy' or 'today' = ".$now->format('Y-m-d')."
   - 'esta semana' = current week
   - 'la semana pasada' = last week
-  - If no date mentioned at all, use today: ".date('Y-m-d').'
+  - If no date mentioned at all, use today: ".$now->format('Y-m-d').'
 - Choose the most appropriate category from the list
 - Extract merchant name if clearly identifiable
 - Amount must be numeric without currency symbols
@@ -138,7 +143,7 @@ Consider Mexican context and common spending patterns. Categories should match e
     /**
      * Process OCR text from receipt images
      */
-    public function processImageText(string $ocrText): array
+    public function processImageText(string $ocrText, string $timezone = 'UTC'): array
     {
         $prompt = "Extract expense information from this receipt OCR text and return ONLY valid JSON:
 
@@ -177,7 +182,7 @@ Rules:
                 'amount' => $data['total'] ?? $data['amount'] ?? 0,
                 'description' => $data['description'] ?? 'Receipt from '.($data['merchant_name'] ?? 'Unknown'),
                 'merchant_name' => $data['merchant_name'] ?? null,
-                'date' => $data['date'] ?? date('Y-m-d'),
+                'date' => $data['date'] ?? \Carbon\Carbon::now($timezone)->format('Y-m-d'),
                 'confidence' => $data['confidence'] ?? 0.7,
                 'items' => $data['items'] ?? [],
                 'tax' => $data['tax'] ?? null,
@@ -194,7 +199,7 @@ Rules:
     /**
      * Process voice transcription to extract expense data
      */
-    public function processVoiceTranscription(string $transcription): array
+    public function processVoiceTranscription(string $transcription, string $timezone = 'UTC'): array
     {
         $prompt = "Extract expense information from this voice transcription and return ONLY valid JSON:
 
@@ -214,7 +219,7 @@ Expected format:
 Rules:
 - Handle informal speech patterns
 - Extract numbers spoken in Spanish or English (e.g., 'doscientos pesos' = 200)
-- Default date is today: ".date('Y-m-d').'
+- Default date is today: ".\Carbon\Carbon::now($timezone)->format('Y-m-d').'
 - Consider Mexican colloquialisms
 - Default currency is MXN
 - Be flexible with grammar and word order';

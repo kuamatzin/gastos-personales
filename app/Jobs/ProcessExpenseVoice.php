@@ -71,7 +71,7 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
             }
 
             // Step 3: Extract expense data using OpenAI
-            $expenseData = $openAIService->extractExpenseData($transcription);
+            $expenseData = $openAIService->extractExpenseData($transcription, $user->getTimezone());
 
             // Step 3.5: Validate/extract date using DateParser as fallback
             if (!isset($expenseData['date']) || $expenseData['date'] === now($user->getTimezone())->toDateString()) {
