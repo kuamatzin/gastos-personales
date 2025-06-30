@@ -171,7 +171,14 @@ class TelegramService
             'date' => $expenseData['date'],
         ], $userLanguage)."\n";
 
-        if ($expenseData['category_confidence'] < 0.9) {
+        // Handle case where category is not found
+        if (!$category) {
+            // Use a default uncategorized category or create appropriate message
+            $message .= trans('telegram.expense_category', [
+                'icon' => '❓',
+                'category' => trans('telegram.categories.uncategorized', [], $userLanguage),
+            ], $userLanguage);
+        } elseif ($expenseData['category_confidence'] < 0.9) {
             $message .= trans('telegram.expense_category_confidence', [
                 'icon' => $category->icon ?? '📋',
                 'category' => $category->getTranslatedName($userLanguage),

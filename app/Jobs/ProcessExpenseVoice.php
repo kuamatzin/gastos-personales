@@ -100,6 +100,22 @@ class ProcessExpenseVoice extends BaseExpenseProcessor
                 $expenseData['inference_method'] = $categoryInference['method'];
             }
 
+            // Step 4.5: Ensure we have a valid category_id (fallback to uncategorized)
+            if (!$expenseData['category_id']) {
+                $uncategorizedCategory = \App\Models\Category::where('slug', 'uncategorized')->first();
+                if ($uncategorizedCategory) {
+                    $expenseData['category_id'] = $uncategorizedCategory->id;
+                    $expenseData['category_confidence'] = 0.0;
+                    $expenseData['inference_method'] = 'fallback';
+                } else {
+                    Log::error('No uncategorized category found and category inference returned null', [
+                        'expense_data' => $expenseData,
+                        'user_id' => $user->id,
+                    ]);
+                    throw new \Exception('Unable to assign category to expense');
+                }
+            }
+
             // Step 5: Create pending expense record
             $expense = DB::transaction(function () use ($user, $expenseData, $transcription) {
                 return Expense::create([
