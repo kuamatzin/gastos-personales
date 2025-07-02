@@ -194,7 +194,7 @@ class TelegramService
             ], $userLanguage);
         }
 
-        if (isset($expenseData['merchant_name'])) {
+        if (isset($expenseData['merchant_name']) && !empty($expenseData['merchant_name'])) {
             $message .= "\n".trans('telegram.expense_merchant', [
                 'merchant' => $this->escapeMarkdown($expenseData['merchant_name']),
             ], $userLanguage);
