@@ -159,13 +159,16 @@ class TelegramService
         $category = \App\Models\Category::find($expenseData['category_id']);
         $confidence = round($expenseData['category_confidence'] * 100);
 
+        // Escape Markdown special characters in user-provided content
+        $description = $this->escapeMarkdown($expenseData['description']);
+
         $message = trans('telegram.expense_detected', [], $userLanguage)."\n\n";
         $message .= trans('telegram.expense_amount', [
             'amount' => number_format($expenseData['amount'], 2),
             'currency' => $expenseData['currency'],
         ], $userLanguage)."\n";
         $message .= trans('telegram.expense_description', [
-            'description' => $expenseData['description'],
+            'description' => $description,
         ], $userLanguage)."\n";
         $message .= trans('telegram.expense_date', [
             'date' => $expenseData['date'],
@@ -193,7 +196,7 @@ class TelegramService
 
         if (isset($expenseData['merchant_name'])) {
             $message .= "\n".trans('telegram.expense_merchant', [
-                'merchant' => $expenseData['merchant_name'],
+                'merchant' => $this->escapeMarkdown($expenseData['merchant_name']),
             ], $userLanguage);
         }
 
@@ -245,7 +248,7 @@ class TelegramService
         
         // Show expense details
         $message .= trans('telegram.expense_description', [
-            'description' => $expenseData['description'],
+            'description' => $this->escapeMarkdown($expenseData['description']),
         ], $userLanguage)."\n";
         
         $category = \App\Models\Category::find($expenseData['category_id']);
@@ -399,5 +402,18 @@ class TelegramService
 
             throw $e;
         }
+    }
+
+    /**
+     * Escape special Markdown characters
+     */
+    private function escapeMarkdown(string $text): string
+    {
+        // Escape special characters used in Markdown
+        return str_replace(
+            ['_', '*', '`', '[', ']'],
+            ['\_', '\*', '\`', '\[', '\]'],
+            $text
+        );
     }
 }
