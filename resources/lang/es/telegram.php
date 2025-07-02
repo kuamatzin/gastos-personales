@@ -235,4 +235,11 @@ return [
     'button_create_installment' => '✅ Crear plan de pagos',
     'button_reject_installment' => '❌ Solo registrar gasto',
     'total_monthly_payments' => 'Total mensual: $:amount',
+    'no_installment_expenses' => '📭 No tienes gastos de mensualidades en este período',
+    'installment_expenses_header' => '💳 *Gastos de mensualidades - :month*',
+    'installment_progress' => 'Pago :current de :total',
+    'installment_number' => 'mensualidad #:number',
+    'subtotal' => 'Subtotal',
+    'total_installment_payments' => 'Total de :count mensualidades: $:amount',
+    'percentage_of_total' => 'Representa el :percentage% de tus gastos totales',
 ];

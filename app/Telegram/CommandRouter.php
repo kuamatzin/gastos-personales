@@ -12,6 +12,7 @@ use App\Telegram\Commands\ExpensesWeekCommand;
 use App\Telegram\Commands\ExportCommand;
 use App\Telegram\Commands\HelpCommand;
 use App\Telegram\Commands\InstallmentsCommand;
+use App\Telegram\Commands\InstallmentExpensesCommand;
 use App\Telegram\Commands\SetLanguageCommand;
 use App\Telegram\Commands\SetTimezoneCommand;
 use App\Telegram\Commands\StartCommand;
@@ -39,6 +40,7 @@ class CommandRouter
         '/language' => SetLanguageCommand::class,
         '/timezone' => SetTimezoneCommand::class,
         '/installments' => InstallmentsCommand::class,
+        '/installment_expenses' => InstallmentExpensesCommand::class,
     ];
 
     /**
@@ -85,6 +87,11 @@ class CommandRouter
         '/meses' => '/installments',
         '/plan_pagos' => '/installments',
         '/planpagos' => '/installments',
+        '/gastos_mensualidades' => '/installment_expenses',
+        '/gastosmensualidades' => '/installment_expenses',
+        '/gastos_meses' => '/installment_expenses',
+        '/installmentexpenses' => '/installment_expenses',
+        '/mensualidades_gastos' => '/installment_expenses',
     ];
 
     private TelegramService $telegram;

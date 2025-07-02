@@ -235,4 +235,11 @@ return [
     'button_create_installment' => '✅ Create installment plan',
     'button_reject_installment' => '❌ Just record expense',
     'total_monthly_payments' => 'Total monthly: $:amount',
+    'no_installment_expenses' => '📭 You have no installment expenses in this period',
+    'installment_expenses_header' => '💳 *Installment expenses - :month*',
+    'installment_progress' => 'Payment :current of :total',
+    'installment_number' => 'installment #:number',
+    'subtotal' => 'Subtotal',
+    'total_installment_payments' => 'Total of :count installments: $:amount',
+    'percentage_of_total' => 'Represents :percentage% of your total expenses',
 ];
