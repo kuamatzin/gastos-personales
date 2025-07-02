@@ -8,6 +8,7 @@ use App\Services\CategoryLearningService;
 use App\Services\OpenAIService;
 use App\Services\TelegramService;
 use App\Services\DateParserService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ProcessExpenseText extends BaseExpenseProcessor
@@ -133,11 +134,18 @@ class ProcessExpenseText extends BaseExpenseProcessor
             });
 
             // Step 4: Store context for confirmation handling
-            $this->storeContext([
+            $contextData = [
                 'expense_id' => $expense->id,
                 'expense_data' => $expenseData,
                 'original_text' => $this->text,
-            ]);
+            ];
+            
+            $this->storeContext($contextData);
+            
+            // Also store with expense ID for installment handling
+            if (isset($expenseData['is_installment']) && $expenseData['is_installment']) {
+                Cache::put("expense_context_{$expense->id}", $contextData, now()->addHour());
+            }
 
             // Step 5: Send confirmation message
             if (isset($expenseData['is_installment']) && $expenseData['is_installment']) {
