@@ -2,8 +2,6 @@
 
 namespace App\Telegram\Commands;
 
-use App\Models\User;
-use App\Services\TelegramService;
 use Illuminate\Support\Facades\Log;
 
 class InstallmentsCommand extends Command
@@ -12,30 +10,29 @@ class InstallmentsCommand extends Command
     
     protected string $description = 'View your active installment plans';
 
-    public function handle(array $message, User $user): bool
+    public function handle(array $message, string $params = ''): void
     {
-        $telegramService = app(TelegramService::class);
         $chatId = $message['chat']['id'];
         
         try {
             // Get active installment plans
-            $activePlans = $user->installmentPlans()
+            $activePlans = $this->user->installmentPlans()
                 ->active()
                 ->with('category')
                 ->orderBy('next_payment_date')
                 ->get();
             
             if ($activePlans->isEmpty()) {
-                $telegramService->sendMessage(
+                $this->telegram->sendMessage(
                     $chatId,
-                    trans('telegram.installment_list_empty', [], $user->language),
+                    trans('telegram.installment_list_empty', [], $this->user->language),
                     ['parse_mode' => 'Markdown']
                 );
-                return true;
+                return;
             }
             
             // Build message with active plans
-            $message = trans('telegram.installment_list_header', [], $user->language) . "\n\n";
+            $message = trans('telegram.installment_list_header', [], $this->user->language) . "\n\n";
             
             foreach ($activePlans as $plan) {
                 $progress = $plan->getNextInstallmentNumber() - 1;
@@ -44,7 +41,7 @@ class InstallmentsCommand extends Command
                     'monthly' => number_format($plan->monthly_amount, 2),
                     'months' => $plan->total_months,
                     'date' => $plan->next_payment_date->format('d/m/Y'),
-                ], $user->language) . "\n";
+                ], $this->user->language) . "\n";
                 
                 // Add progress bar
                 $progressBar = $this->createProgressBar($progress, $plan->total_months);
@@ -55,33 +52,33 @@ class InstallmentsCommand extends Command
             $totalMonthly = $activePlans->sum('monthly_amount');
             $message .= "\n💰 " . trans('telegram.total_monthly_payments', [
                 'amount' => number_format($totalMonthly, 2)
-            ], $user->language);
+            ], $this->user->language);
             
-            $telegramService->sendMessage(
+            $this->telegram->sendMessage(
                 $chatId,
                 $message,
                 ['parse_mode' => 'Markdown']
             );
             
             Log::info('Installments command executed', [
-                'user_id' => $user->id,
+                'user_id' => $this->user->id,
                 'active_plans' => $activePlans->count(),
             ]);
             
-            return true;
+            return;
             
         } catch (\Exception $e) {
             Log::error('Failed to list installments', [
                 'error' => $e->getMessage(),
-                'user_id' => $user->id,
+                'user_id' => $this->user->id,
             ]);
             
             $telegramService->sendMessage(
                 $chatId,
-                trans('telegram.error_occurred', [], $user->language)
+                trans('telegram.error_occurred', [], $this->user->language)
             );
             
-            return true;
+            return;
         }
     }
     

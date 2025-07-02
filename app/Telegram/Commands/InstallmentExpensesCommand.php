@@ -2,8 +2,6 @@
 
 namespace App\Telegram\Commands;
 
-use App\Models\User;
-use App\Services\TelegramService;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -13,18 +11,17 @@ class InstallmentExpensesCommand extends Command
     
     protected string $description = 'View your recent installment expenses';
 
-    public function handle(array $message, User $user): bool
+    public function handle(array $message, string $params = ''): void
     {
-        $telegramService = app(TelegramService::class);
         $chatId = $message['chat']['id'];
         
         try {
             // Get the date range (current month by default)
-            $startDate = Carbon::now($user->getTimezone())->startOfMonth();
-            $endDate = Carbon::now($user->getTimezone())->endOfMonth();
+            $startDate = Carbon::now($this->user->getTimezone())->startOfMonth();
+            $endDate = Carbon::now($this->user->getTimezone())->endOfMonth();
             
             // Get installment expenses for the period
-            $installmentExpenses = $user->expenses()
+            $installmentExpenses = $this->user->expenses()
                 ->whereNotNull('installment_plan_id')
                 ->whereBetween('expense_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
                 ->where('status', 'confirmed')
@@ -33,18 +30,18 @@ class InstallmentExpensesCommand extends Command
                 ->get();
             
             if ($installmentExpenses->isEmpty()) {
-                $telegramService->sendMessage(
+                $this->telegram->sendMessage(
                     $chatId,
-                    trans('telegram.no_installment_expenses', [], $user->language),
+                    trans('telegram.no_installment_expenses', [], $this->user->language),
                     ['parse_mode' => 'Markdown']
                 );
-                return true;
+                return;
             }
             
             // Build message with installment expenses
             $message = trans('telegram.installment_expenses_header', [
                 'month' => $startDate->translatedFormat('F Y')
-            ], $user->language) . "\n\n";
+            ], $this->user->language) . "\n\n";
             
             $totalAmount = 0;
             $byPlan = [];
@@ -76,7 +73,7 @@ class InstallmentExpensesCommand extends Command
                 $message .= "   📊 " . trans('telegram.installment_progress', [
                     'current' => $progress,
                     'total' => $plan->total_months
-                ], $user->language) . "\n";
+                ], $this->user->language) . "\n";
                 
                 // Expenses for this plan
                 foreach ($planExpenses as $expense) {
@@ -84,10 +81,10 @@ class InstallmentExpensesCommand extends Command
                     $message .= "   • {$date} - $" . number_format($expense->amount, 2);
                     $message .= " (" . trans('telegram.installment_number', [
                         'number' => $expense->installment_number
-                    ], $user->language) . ")\n";
+                    ], $this->user->language) . ")\n";
                 }
                 
-                $message .= "   💰 " . trans('telegram.subtotal', [], $user->language) . 
+                $message .= "   💰 " . trans('telegram.subtotal', [], $this->user->language) . 
                            ": $" . number_format($planTotal, 2) . "\n\n";
             }
             
@@ -96,10 +93,10 @@ class InstallmentExpensesCommand extends Command
             $message .= "💳 " . trans('telegram.total_installment_payments', [
                 'count' => $installmentExpenses->count(),
                 'amount' => number_format($totalAmount, 2)
-            ], $user->language);
+            ], $this->user->language);
             
             // Add percentage of total expenses
-            $totalMonthExpenses = $user->expenses()
+            $totalMonthExpenses = $this->user->expenses()
                 ->whereBetween('expense_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
                 ->where('status', 'confirmed')
                 ->sum('amount');
@@ -108,35 +105,35 @@ class InstallmentExpensesCommand extends Command
                 $percentage = round(($totalAmount / $totalMonthExpenses) * 100, 1);
                 $message .= "\n📊 " . trans('telegram.percentage_of_total', [
                     'percentage' => $percentage
-                ], $user->language);
+                ], $this->user->language);
             }
             
-            $telegramService->sendMessage(
+            $this->telegram->sendMessage(
                 $chatId,
                 $message,
                 ['parse_mode' => 'Markdown']
             );
             
             Log::info('Installment expenses command executed', [
-                'user_id' => $user->id,
+                'user_id' => $this->user->id,
                 'expenses_count' => $installmentExpenses->count(),
                 'total_amount' => $totalAmount,
             ]);
             
-            return true;
+            return;
             
         } catch (\Exception $e) {
             Log::error('Failed to list installment expenses', [
                 'error' => $e->getMessage(),
-                'user_id' => $user->id,
+                'user_id' => $this->user->id,
             ]);
             
-            $telegramService->sendMessage(
+            $this->telegram->sendMessage(
                 $chatId,
-                trans('telegram.error_occurred', [], $user->language)
+                trans('telegram.error_occurred', [], $this->user->language)
             );
             
-            return true;
+            return;
         }
     }
 }
