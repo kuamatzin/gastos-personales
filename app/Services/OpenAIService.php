@@ -53,7 +53,14 @@ Expected format:
     \"category_confidence\": 0.95,
     \"merchant_name\": \"merchant name if identifiable\",
     \"date\": \"YYYY-MM-DD\",
-    \"confidence\": 0.95
+    \"confidence\": 0.95,
+    \"is_installment\": false,
+    \"installment_data\": {
+        \"total_amount\": 12000,
+        \"monthly_amount\": 1000,
+        \"months\": 12,
+        \"has_interest\": false
+    }
 }
 
 Rules:
@@ -70,7 +77,22 @@ Rules:
 - Default currency is MXN
 - category_confidence should reflect how certain you are about the category (0.0-1.0)
 - Description should be clear and concise
-- Consider Mexican context (common stores, services, etc.)';
+- Consider Mexican context (common stores, services, etc.)
+
+INSTALLMENT DETECTION:
+- Detect if this is an installment purchase (meses, mensualidades, a plazos)
+- If installment detected:
+  - Set is_installment: true
+  - Extract total_amount from text (e.g., \"12000 pesos en lavadora\")
+  - Calculate or extract monthly_amount
+  - Extract number of months (support Spanish numbers: doce = 12, seis = 6, etc.)
+  - Detect if has_interest based on \"sin intereses\" vs \"con intereses\"
+  - For \"sin intereses\": monthly_amount = total_amount / months
+  - For \"con intereses\": extract specified monthly amount from text
+- Examples:
+  - \"12000 pesos en lavadora a 12 meses sin intereses\" → total: 12000, monthly: 1000, months: 12, interest: false
+  - \"13000 pesos en horno a 6 meses con intereses, 3000 pesos mensuales\" → total: 13000, monthly: 3000, months: 6, interest: true
+- If not installment: set is_installment: false, omit installment_data';
 
         try {
             $response = $this->makeApiCall($prompt);

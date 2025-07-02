@@ -25,6 +25,8 @@ class Expense extends Model
         'rejected_at',
         'rejection_reason',
         'metadata',
+        'installment_plan_id',
+        'installment_number',
     ];
 
     protected $casts = [
@@ -62,6 +64,11 @@ class Expense extends Model
         return $this->belongsTo(Category::class, 'suggested_category_id');
     }
 
+    public function installmentPlan(): BelongsTo
+    {
+        return $this->belongsTo(InstallmentPlan::class);
+    }
+
     public function scopeConfirmed($query)
     {
         return $query->where('status', 'confirmed');
@@ -75,5 +82,41 @@ class Expense extends Model
     public function getFormattedAmountAttribute(): string
     {
         return '$'.number_format($this->amount, 2).' '.$this->currency;
+    }
+
+    /**
+     * Check if this expense is part of an installment plan
+     */
+    public function isInstallment(): bool
+    {
+        return !is_null($this->installment_plan_id);
+    }
+
+    /**
+     * Get installment description
+     */
+    public function getInstallmentDescription(): ?string
+    {
+        if (!$this->isInstallment()) {
+            return null;
+        }
+
+        return "Mensualidad {$this->installment_number}/{$this->installmentPlan->total_months}";
+    }
+
+    /**
+     * Scope for installment expenses
+     */
+    public function scopeInstallments($query)
+    {
+        return $query->whereNotNull('installment_plan_id');
+    }
+
+    /**
+     * Scope for non-installment expenses
+     */
+    public function scopeRegular($query)
+    {
+        return $query->whereNull('installment_plan_id');
     }
 }

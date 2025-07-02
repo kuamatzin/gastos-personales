@@ -68,6 +68,11 @@ class User extends Authenticatable
         return $this->hasMany(CategoryLearning::class);
     }
 
+    public function installmentPlans(): HasMany
+    {
+        return $this->hasMany(InstallmentPlan::class);
+    }
+
     /**
      * Get the user's timezone.
      */
