@@ -2,7 +2,16 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Schedule tasks
+Schedule::command('installments:process-due')
+    ->daily()
+    ->at('09:00')
+    ->timezone('America/Mexico_City')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/installments.log'));

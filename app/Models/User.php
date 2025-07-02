@@ -125,4 +125,12 @@ class User extends Authenticatable
         return $this->expenses()
             ->whereBetween('expense_date', [$startOfWeek->format('Y-m-d'), $endOfWeek->format('Y-m-d')]);
     }
+
+    /**
+     * Get the user's installment plans.
+     */
+    public function installmentPlans(): HasMany
+    {
+        return $this->hasMany(InstallmentPlan::class);
+    }
 }

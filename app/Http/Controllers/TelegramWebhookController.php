@@ -10,6 +10,7 @@ use App\Services\TelegramService;
 use App\Telegram\CommandRouter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class TelegramWebhookController extends Controller
@@ -147,6 +148,14 @@ class TelegramWebhookController extends Controller
         } elseif (strpos($data, 'export_') === 0) {
             // Handle export callbacks
             $this->handleExportCallback($chatId, $messageId, $userId, $data);
+        } elseif (strpos($data, 'create_installment_') === 0) {
+            // Handle installment creation
+            $expenseId = str_replace('create_installment_', '', $data);
+            $this->createInstallmentPlan($chatId, $messageId, $expenseId, $userId);
+        } elseif (strpos($data, 'reject_installment_') === 0) {
+            // Handle installment rejection (just confirm the expense)
+            $expenseId = str_replace('reject_installment_', '', $data);
+            $this->confirmExpense($chatId, $messageId, $expenseId, $userId);
         } elseif ($data === 'cancel') {
             // Handle generic cancel
             $user = \App\Models\User::where('telegram_id', $userId)->first();
@@ -871,6 +880,87 @@ class TelegramWebhookController extends Controller
                     'end' => Carbon::now($timezone)->endOfMonth(),
                     'name' => Carbon::now($timezone)->format('F Y'),
                 ];
+        }
+    }
+
+    /**
+     * Create installment plan from expense
+     */
+    private function createInstallmentPlan(string $chatId, int $messageId, string $expenseId, string $userId)
+    {
+        try {
+            // Find the expense
+            $expense = Expense::where('id', $expenseId)
+                ->where('user_id', function ($query) use ($userId) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('telegram_id', $userId)
+                        ->limit(1);
+                })
+                ->where('status', 'pending')
+                ->first();
+
+            if (!$expense) {
+                $user = \App\Models\User::where('telegram_id', $userId)->first();
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.expense_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            // Get the stored context with installment data
+            $context = Cache::get("expense_context_{$expenseId}");
+            if (!$context || !isset($context['expense_data']['installment_data'])) {
+                $user = \App\Models\User::where('telegram_id', $userId)->first();
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_occurred', [], $user->language ?? 'es'));
+                return;
+            }
+
+            $user = $expense->user;
+            $installmentData = $context['expense_data']['installment_data'];
+            $expenseData = $context['expense_data'];
+
+            // Create the installment plan
+            $installmentPlanService = app(\App\Services\InstallmentPlanService::class);
+            $plan = $installmentPlanService->createPlan($user, $installmentData, $expenseData);
+
+            // Update the expense to link it to the plan and confirm it
+            $expense->installment_plan_id = $plan->id;
+            $expense->installment_number = 1;
+            $expense->status = 'confirmed';
+            $expense->confirmed_at = now();
+            $expense->save();
+
+            // Activate the plan
+            $plan->activate();
+
+            // Send success message
+            $successMessage = trans('telegram.installment_created', [], $user->language)."\n\n";
+            $successMessage .= trans('telegram.installment_first_payment', [
+                'amount' => number_format($expense->amount, 2)
+            ], $user->language)."\n";
+            $successMessage .= trans('telegram.installment_next_payment', [
+                'date' => $plan->next_payment_date->format('d/m/Y')
+            ], $user->language);
+
+            $this->telegram->editMessage($chatId, $messageId, $successMessage);
+
+            // Clean up context
+            Cache::forget("expense_context_{$expenseId}");
+
+            Log::info('Installment plan created via Telegram', [
+                'plan_id' => $plan->id,
+                'expense_id' => $expense->id,
+                'user_id' => $user->id,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create installment plan', [
+                'error' => $e->getMessage(),
+                'expense_id' => $expenseId,
+                'user_telegram_id' => $userId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_occurred', [], $user->language ?? 'es'));
         }
     }
 }

@@ -214,6 +214,69 @@ class TelegramService
     }
 
     /**
+     * Send installment confirmation message
+     */
+    public function sendInstallmentConfirmation(string $chatId, array $expenseData, array $installmentData, string $userLanguage = 'es'): array
+    {
+        $message = trans('telegram.installment_detected', [], $userLanguage)."\n\n";
+        
+        // Show installment details
+        $message .= trans('telegram.installment_total_amount', [
+            'amount' => number_format($installmentData['total_amount'], 2),
+            'currency' => $expenseData['currency'] ?? 'MXN',
+        ], $userLanguage)."\n";
+        
+        $message .= trans('telegram.installment_monthly_payment', [
+            'amount' => number_format($installmentData['monthly_amount'], 2),
+            'currency' => $expenseData['currency'] ?? 'MXN',
+        ], $userLanguage)."\n";
+        
+        $message .= trans('telegram.installment_months', [
+            'months' => $installmentData['months'],
+        ], $userLanguage)."\n";
+        
+        $interestType = $installmentData['has_interest'] 
+            ? trans('telegram.installment_with_interest', [], $userLanguage)
+            : trans('telegram.installment_without_interest', [], $userLanguage);
+        
+        $message .= trans('telegram.installment_interest', [
+            'type' => $interestType,
+        ], $userLanguage)."\n\n";
+        
+        // Show expense details
+        $message .= trans('telegram.expense_description', [
+            'description' => $expenseData['description'],
+        ], $userLanguage)."\n";
+        
+        $category = \App\Models\Category::find($expenseData['category_id']);
+        if ($category) {
+            $message .= trans('telegram.expense_category', [
+                'icon' => $category->icon ?? '📋',
+                'category' => $category->getTranslatedName($userLanguage),
+            ], $userLanguage)."\n";
+        }
+        
+        $message .= "\n".trans('telegram.installment_confirm_question', [], $userLanguage);
+        
+        $keyboard = [
+            [
+                ['text' => trans('telegram.button_create_installment', [], $userLanguage), 
+                 'callback_data' => 'create_installment_'.$expenseData['expense_id']],
+            ],
+            [
+                ['text' => trans('telegram.button_reject_installment', [], $userLanguage), 
+                 'callback_data' => 'reject_installment_'.$expenseData['expense_id']],
+            ],
+            [
+                ['text' => trans('telegram.button_cancel', [], $userLanguage), 
+                 'callback_data' => 'cancel_expense_'.$expenseData['expense_id']],
+            ],
+        ];
+        
+        return $this->sendMessageWithKeyboard($chatId, $message, $keyboard);
+    }
+
+    /**
      * Send category selection
      */
     public function sendCategorySelection(string $chatId, ?int $currentCategoryId = null, string $userLanguage = 'es'): array

@@ -32,7 +32,9 @@ class ProcessExpenseText extends BaseExpenseProcessor
         CategoryInferenceService $categoryService,
         CategoryLearningService $learningService,
         TelegramService $telegramService,
-        DateParserService $dateParser
+        DateParserService $dateParser,
+        \App\Services\InstallmentDetectionService $installmentService,
+        \App\Services\InstallmentPlanService $installmentPlanService
     ): void {
         // Handle special commands
         if ($this->text === 'delete_message') {
@@ -61,6 +63,25 @@ class ProcessExpenseText extends BaseExpenseProcessor
                         'relative' => $dateParser->getRelativeDateDescription($parsedDate)
                     ]);
                 }
+            }
+
+            // Step 1.6: Detect if this is an installment purchase
+            $installmentData = $installmentService->detectInstallments($this->text);
+            if ($installmentData && $installmentData['is_installment']) {
+                \Log::info('Installment detected', [
+                    'user_id' => $user->id,
+                    'installment_data' => $installmentData,
+                    'original_text' => $this->text
+                ]);
+                
+                // Store installment data for later use
+                $expenseData['is_installment'] = true;
+                $expenseData['installment_data'] = $installmentData;
+                
+                // For installments, we'll initially create just the first payment
+                // The full plan will be created after user confirmation
+                $expenseData['amount'] = $installmentData['monthly_amount'];
+                $expenseData['original_amount'] = $installmentData['total_amount'];
             }
 
             // Step 2: Infer category if not already set
@@ -118,12 +139,23 @@ class ProcessExpenseText extends BaseExpenseProcessor
                 'original_text' => $this->text,
             ]);
 
-            // Step 5: Send confirmation message with category
-            $telegramService->sendExpenseConfirmationWithCategory(
-                $this->userId,
-                array_merge($expenseData, ['expense_id' => $expense->id]),
-                $user->language ?? 'es'
-            );
+            // Step 5: Send confirmation message
+            if (isset($expenseData['is_installment']) && $expenseData['is_installment']) {
+                // Send installment confirmation
+                $telegramService->sendInstallmentConfirmation(
+                    $this->userId,
+                    array_merge($expenseData, ['expense_id' => $expense->id]),
+                    $expenseData['installment_data'],
+                    $user->language ?? 'es'
+                );
+            } else {
+                // Send regular expense confirmation
+                $telegramService->sendExpenseConfirmationWithCategory(
+                    $this->userId,
+                    array_merge($expenseData, ['expense_id' => $expense->id]),
+                    $user->language ?? 'es'
+                );
+            }
 
             $this->logComplete('text', [
                 'expense_id' => $expense->id,
