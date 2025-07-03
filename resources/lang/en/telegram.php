@@ -242,4 +242,36 @@ return [
     'subtotal' => 'Subtotal',
     'total_installment_payments' => 'Total of :count installments: $:amount',
     'percentage_of_total' => 'Represents :percentage% of your total expenses',
+    
+    // Subscription messages
+    'subscription_detected' => '🔄 Possible subscription detected!',
+    'subscription_confidence' => '📊 Confidence: :confidence%',
+    'suggested_periodicity' => '📅 Suggested periodicity: :periodicity',
+    'subscription_question' => 'Is this a recurring subscription?',
+    'button_yes_subscription' => '✅ Yes, it\'s a subscription',
+    'button_no_subscription' => '❌ No, one-time payment',
+    'subscription_select_periodicity' => '📅 *How often is this subscription charged?*',
+    'subscription_created' => '✅ Subscription created successfully:\n\n📝 Name: :name\n💵 Amount: $:amount :currency\n📅 Periodicity: :periodicity\n📆 Next charge: :next_charge',
+    'subscription_cancelled' => '❌ Subscription creation cancelled.',
+    'subscription_existing' => '⚠️ A similar subscription already exists:\n📝 :name\n💵 $:amount :currency\n📅 :periodicity',
+    
+    // Periodicity translations
+    'periodicity' => [
+        'daily' => 'Daily',
+        'weekly' => 'Weekly',
+        'biweekly' => 'Biweekly',
+        'monthly' => 'Monthly',
+        'quarterly' => 'Quarterly',
+        'yearly' => 'Yearly',
+    ],
+    
+    // Subscription commands
+    'subscriptions_title' => '🔄 *Active Subscriptions*',
+    'subscription_info' => '• :name\n  💵 $:amount :currency :periodicity\n  📆 Next: :next_charge',
+    'no_subscriptions' => 'You have no active subscriptions.',
+    'subscription_expenses_title' => '🔄 *Subscription Charges - :month*',
+    'subscription_expense_info' => '• :date - :name\n  💵 $:amount :currency',
+    'no_subscription_expenses' => 'No subscription charges this month.',
+    'subscription_payment_processed' => "✅ Subscription charge processed:\n\n📝 :name\n💵 $:amount :currency\n📅 Periodicity: :periodicity\n📆 Next charge: :next_charge",
+    'total_monthly_subscriptions' => 'Estimated monthly total: $:amount',
 ];

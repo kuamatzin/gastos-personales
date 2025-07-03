@@ -3,7 +3,7 @@
 return [
     'welcome' => "¡Bienvenido a ExpenseBot! 🎉\n\nTe ayudaré a registrar tus gastos. Solo envíame:\n• Texto con el monto y descripción\n• Notas de voz\n• Fotos de recibos\n\nUsa /ayuda para ver todos los comandos disponibles.",
 
-    'help' => "Comandos disponibles:\n\n📊 *Reportes*\n/gastos_hoy - Gastos de hoy\n/gastos_semana - Gastos de esta semana\n/gastos_mes - Gastos de este mes\n/gastos_categoria - Gastos por categoría\n/categorias_top - Categorías con más gastos\n/estadisticas - Estadísticas y análisis\n\n💳 *Mensualidades*\n/mensualidades - Ver planes de pago activos\n/gastos_mensualidades - Gastos de mensualidades del mes\n\n📤 *Exportar*\n/exportar - Exportar tus gastos\n\n⚙️ *Configuración*\n/idioma - Cambiar idioma\n/timezone - Configurar zona horaria\n/cancelar - Cancelar operación actual\n\n*Cómo agregar gastos:*\nSolo envíame un mensaje con el monto y descripción. Por ejemplo:\n• \"50 café\"\n• \"$120 despensa\"\n• \"12000 pesos en lavadora a 12 meses sin intereses\"\n• Nota de voz describiendo tu gasto\n• Foto de un recibo\n\n🌍 *Zona Horaria:* Los gastos se registran según tu zona horaria configurada. Usa /timezone para cambiarla.",
+    'help' => "Comandos disponibles:\n\n📊 *Reportes*\n/gastos_hoy - Gastos de hoy\n/gastos_semana - Gastos de esta semana\n/gastos_mes - Gastos de este mes\n/gastos_categoria - Gastos por categoría\n/categorias_top - Categorías con más gastos\n/estadisticas - Estadísticas y análisis\n\n💳 *Mensualidades*\n/mensualidades - Ver planes de pago activos\n/gastos_mensualidades - Gastos de mensualidades del mes\n\n🔄 *Suscripciones*\n/suscripciones - Ver suscripciones activas\n/gastos_suscripciones - Cobros de suscripciones del mes\n\n📤 *Exportar*\n/exportar - Exportar tus gastos\n\n⚙️ *Configuración*\n/idioma - Cambiar idioma\n/timezone - Configurar zona horaria\n/cancelar - Cancelar operación actual\n\n*Cómo agregar gastos:*\nSolo envíame un mensaje con el monto y descripción. Por ejemplo:\n• \"50 café\"\n• \"$120 despensa\"\n• \"149 netflix\" (detecta suscripciones)\n• \"12000 pesos en lavadora a 12 meses sin intereses\"\n• Nota de voz describiendo tu gasto\n• Foto de un recibo\n\n🌍 *Zona Horaria:* Los gastos se registran según tu zona horaria configurada. Usa /timezone para cambiarla.",
 
     'expense_saved' => "✅ ¡Gasto guardado exitosamente!\n\n💰 Monto: $:amount\n📝 Descripción: :description\n🏷 Categoría: :category\n📅 Fecha: :date",
 
@@ -242,4 +242,36 @@ return [
     'subtotal' => 'Subtotal',
     'total_installment_payments' => 'Total de :count mensualidades: $:amount',
     'percentage_of_total' => 'Representa el :percentage% de tus gastos totales',
+    
+    // Subscription messages
+    'subscription_detected' => '🔄 ¡Posible suscripción detectada!',
+    'subscription_confidence' => '📊 Confianza: :confidence%',
+    'suggested_periodicity' => '📅 Periodicidad sugerida: :periodicity',
+    'subscription_question' => '¿Es esto una suscripción recurrente?',
+    'button_yes_subscription' => '✅ Sí, es suscripción',
+    'button_no_subscription' => '❌ No, pago único',
+    'subscription_select_periodicity' => '📅 *¿Con qué frecuencia se cobra esta suscripción?*',
+    'subscription_created' => '✅ Suscripción creada exitosamente:\n\n📝 Nombre: :name\n💵 Monto: $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge',
+    'subscription_cancelled' => '❌ Creación de suscripción cancelada.',
+    'subscription_existing' => '⚠️ Ya existe una suscripción similar:\n📝 :name\n💵 $:amount :currency\n📅 :periodicity',
+    
+    // Periodicity translations
+    'periodicity' => [
+        'daily' => 'Diaria',
+        'weekly' => 'Semanal',
+        'biweekly' => 'Quincenal',
+        'monthly' => 'Mensual',
+        'quarterly' => 'Trimestral',
+        'yearly' => 'Anual',
+    ],
+    
+    // Subscription commands
+    'subscriptions_title' => '🔄 *Suscripciones Activas*',
+    'subscription_info' => '• :name\n  💵 $:amount :currency :periodicity\n  📆 Próximo: :next_charge',
+    'no_subscriptions' => 'No tienes suscripciones activas.',
+    'subscription_expenses_title' => '🔄 *Cobros de Suscripciones - :month*',
+    'subscription_expense_info' => '• :date - :name\n  💵 $:amount :currency',
+    'no_subscription_expenses' => 'No hay cobros de suscripciones este mes.',
+    'subscription_payment_processed' => "✅ Cobro de suscripción procesado:\n\n📝 :name\n💵 $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge",
+    'total_monthly_subscriptions' => 'Total mensual estimado: $:amount',
 ];

@@ -85,6 +85,32 @@ class ProcessExpenseText extends BaseExpenseProcessor
                 $expenseData['original_amount'] = $installmentData['total_amount'];
             }
 
+            // Step 1.7: Detect if this is a subscription
+            $subscriptionService = new \App\Services\SubscriptionDetectionService();
+            $subscriptionData = $subscriptionService->detectSubscription($this->text);
+            if ($subscriptionData['is_subscription']) {
+                \Log::info('Subscription detected', [
+                    'user_id' => $user->id,
+                    'subscription_data' => $subscriptionData,
+                    'original_text' => $this->text
+                ]);
+                
+                // Store subscription data for later use
+                $expenseData['is_subscription'] = true;
+                $expenseData['subscription_data'] = $subscriptionData;
+                
+                // Check if this matches an existing subscription
+                $existingSubscription = $subscriptionService->checkExistingSubscription(
+                    $user->id,
+                    $expenseData['amount'],
+                    $expenseData['merchant_name'] ?? null
+                );
+                
+                if ($existingSubscription) {
+                    $expenseData['existing_subscription'] = $existingSubscription;
+                }
+            }
+
             // Step 2: Infer category if not already set
             if (! isset($expenseData['category_id'])) {
                 $categoryInference = $categoryService->inferCategory(
@@ -142,8 +168,10 @@ class ProcessExpenseText extends BaseExpenseProcessor
             
             $this->storeContext($contextData);
             
-            // Also store with expense ID for installment handling
+            // Also store with expense ID for installment/subscription handling
             if (isset($expenseData['is_installment']) && $expenseData['is_installment']) {
+                Cache::put("expense_context_{$expense->id}", $contextData, now()->addHour());
+            } elseif (isset($expenseData['is_subscription']) && $expenseData['is_subscription']) {
                 Cache::put("expense_context_{$expense->id}", $contextData, now()->addHour());
             }
 
@@ -154,6 +182,14 @@ class ProcessExpenseText extends BaseExpenseProcessor
                     $this->userId,
                     array_merge($expenseData, ['expense_id' => $expense->id]),
                     $expenseData['installment_data'],
+                    $user->language ?? 'es'
+                );
+            } elseif (isset($expenseData['is_subscription']) && $expenseData['is_subscription']) {
+                // Send subscription confirmation
+                $telegramService->sendSubscriptionConfirmation(
+                    $this->userId,
+                    array_merge($expenseData, ['expense_id' => $expense->id]),
+                    $expenseData['subscription_data'],
                     $user->language ?? 'es'
                 );
             } else {

@@ -73,6 +73,11 @@ class User extends Authenticatable
         return $this->hasMany(InstallmentPlan::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     /**
      * Get the user's timezone.
      */

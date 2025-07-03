@@ -156,6 +156,21 @@ class TelegramWebhookController extends Controller
             // Handle installment rejection (just confirm the expense)
             $expenseId = str_replace('reject_installment_', '', $data);
             $this->confirmExpense($chatId, $messageId, $expenseId, $userId);
+        } elseif (strpos($data, 'subscription_yes_') === 0) {
+            // Handle subscription confirmation
+            $expenseId = str_replace('subscription_yes_', '', $data);
+            $this->handleSubscriptionYes($chatId, $messageId, $expenseId, $userId);
+        } elseif (strpos($data, 'subscription_no_') === 0) {
+            // Handle subscription rejection
+            $expenseId = str_replace('subscription_no_', '', $data);
+            $this->confirmExpense($chatId, $messageId, $expenseId, $userId);
+        } elseif (strpos($data, 'subscription_period_') === 0) {
+            // Handle subscription periodicity selection
+            $this->handleSubscriptionPeriodicity($chatId, $messageId, $userId, $data);
+        } elseif (strpos($data, 'subscription_cancel_') === 0) {
+            // Handle subscription creation cancellation
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_cancelled', [], $user->language ?? 'es'));
         } elseif ($data === 'cancel') {
             // Handle generic cancel
             $user = \App\Models\User::where('telegram_id', $userId)->first();
@@ -961,6 +976,134 @@ class TelegramWebhookController extends Controller
 
             $user = \App\Models\User::where('telegram_id', $userId)->first();
             $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_occurred', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleSubscriptionYes(string $chatId, int $messageId, string $expenseId, string $userId)
+    {
+        try {
+            // Get the expense and context
+            $expense = \App\Models\Expense::where('id', $expenseId)
+                ->where('user_id', function ($query) use ($userId) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('telegram_id', $userId)
+                        ->limit(1);
+                })
+                ->first();
+
+            if (!$expense) {
+                $user = \App\Models\User::where('telegram_id', $userId)->first();
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.expense_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            // Show periodicity selection
+            $this->telegram->sendSubscriptionPeriodicitySelection($chatId, $expenseId, $expense->user->language ?? 'es');
+            
+            // Update the confirmation message to show it's being processed
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.processing_text', [], $expense->user->language ?? 'es'));
+        } catch (\Exception $e) {
+            Log::error('Error handling subscription confirmation', [
+                'error' => $e->getMessage(),
+                'expense_id' => $expenseId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleSubscriptionPeriodicity(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            // Parse the callback data: subscription_period_{periodicity}_{expenseId}
+            $parts = explode('_', $data);
+            if (count($parts) < 4) {
+                throw new \Exception('Invalid callback data format');
+            }
+            
+            $periodicity = $parts[2];
+            $expenseId = $parts[3];
+
+            // Get the expense
+            $expense = \App\Models\Expense::where('id', $expenseId)
+                ->where('user_id', function ($query) use ($userId) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('telegram_id', $userId)
+                        ->limit(1);
+                })
+                ->first();
+
+            if (!$expense) {
+                $user = \App\Models\User::where('telegram_id', $userId)->first();
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.expense_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            // Get the context data
+            $context = Cache::get("expense_context_{$expenseId}");
+            if (!$context) {
+                $user = $expense->user;
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+                return;
+            }
+
+            // Create the subscription
+            $subscription = \App\Models\Subscription::create([
+                'user_id' => $expense->user_id,
+                'name' => $expense->description,
+                'description' => $expense->description,
+                'amount' => $expense->amount,
+                'currency' => $expense->currency,
+                'periodicity' => $periodicity,
+                'next_charge_date' => Carbon::now()->addDay(), // First charge is tomorrow
+                'last_charge_date' => Carbon::now(),
+                'status' => 'active',
+                'category_id' => $expense->category_id,
+                'merchant_name' => $expense->merchant_name,
+            ]);
+
+            // Link the expense to the subscription
+            \App\Models\SubscriptionExpense::create([
+                'subscription_id' => $subscription->id,
+                'expense_id' => $expense->id,
+                'charge_date' => $expense->expense_date,
+                'status' => 'processed',
+            ]);
+
+            // Confirm the expense
+            $expense->update([
+                'status' => 'confirmed',
+                'confirmed_at' => now(),
+            ]);
+
+            // Send success message
+            $user = $expense->user;
+            $periodicityText = trans('telegram.periodicity.'.$periodicity, [], $user->language);
+            $successMessage = trans('telegram.subscription_created', [
+                'name' => $subscription->name,
+                'amount' => number_format($subscription->amount, 2),
+                'currency' => $subscription->currency,
+                'periodicity' => $periodicityText,
+                'next_charge' => $subscription->next_charge_date->format('d/m/Y'),
+            ], $user->language);
+
+            $this->telegram->editMessage($chatId, $messageId, $successMessage);
+
+            // Clean up context
+            Cache::forget("expense_context_{$expenseId}");
+
+        } catch (\Exception $e) {
+            Log::error('Error creating subscription', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_telegram_id' => $userId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
         }
     }
 }

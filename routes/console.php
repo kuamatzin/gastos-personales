@@ -15,3 +15,10 @@ Schedule::command('installments:process-due')
     ->timezone('America/Mexico_City')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/installments.log'));
+
+Schedule::command('subscriptions:process-due')
+    ->daily()
+    ->at('08:00')
+    ->timezone('America/Mexico_City')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/subscriptions.log'));

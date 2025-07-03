@@ -280,6 +280,105 @@ class TelegramService
     }
 
     /**
+     * Send subscription confirmation message
+     */
+    public function sendSubscriptionConfirmation(string $chatId, array $expenseData, array $subscriptionData, string $userLanguage = 'es'): array
+    {
+        $category = \App\Models\Category::find($expenseData['category_id']);
+        
+        // Escape user-provided content
+        $description = $this->escapeMarkdown($expenseData['description']);
+        
+        $message = trans('telegram.subscription_detected', [], $userLanguage)."\n\n";
+        $message .= trans('telegram.expense_amount', [
+            'amount' => number_format($expenseData['amount'], 2),
+            'currency' => $expenseData['currency'],
+        ], $userLanguage)."\n";
+        $message .= trans('telegram.expense_description', [
+            'description' => $description,
+        ], $userLanguage)."\n";
+        
+        if ($category) {
+            $message .= trans('telegram.expense_category', [
+                'icon' => $category->icon ?? '🏷️',
+                'category' => $category->getTranslatedName($userLanguage),
+            ], $userLanguage)."\n";
+        }
+        
+        if (isset($expenseData['merchant_name']) && !empty($expenseData['merchant_name'])) {
+            $message .= trans('telegram.expense_merchant', [
+                'merchant' => $this->escapeMarkdown($expenseData['merchant_name']),
+            ], $userLanguage)."\n";
+        }
+        
+        // Add subscription confidence
+        $confidence = round($subscriptionData['confidence'] * 100);
+        $message .= trans('telegram.subscription_confidence', [
+            'confidence' => $confidence,
+        ], $userLanguage)."\n";
+        
+        if ($subscriptionData['suggested_periodicity']) {
+            $periodicityText = trans('telegram.periodicity.'.$subscriptionData['suggested_periodicity'], [], $userLanguage);
+            $message .= trans('telegram.suggested_periodicity', [
+                'periodicity' => $periodicityText,
+            ], $userLanguage)."\n";
+        }
+        
+        $message .= "\n".trans('telegram.subscription_question', [], $userLanguage);
+        
+        $keyboard = [
+            [
+                [
+                    'text' => trans('telegram.button_yes_subscription', [], $userLanguage),
+                    'callback_data' => "subscription_yes_{$expenseData['expense_id']}",
+                ],
+                [
+                    'text' => trans('telegram.button_no_subscription', [], $userLanguage),
+                    'callback_data' => "subscription_no_{$expenseData['expense_id']}",
+                ],
+            ],
+        ];
+        
+        return $this->sendMessageWithKeyboard($chatId, $message, $keyboard, [
+            'parse_mode' => 'Markdown',
+        ]);
+    }
+
+    /**
+     * Send subscription periodicity selection
+     */
+    public function sendSubscriptionPeriodicitySelection(string $chatId, int $expenseId, string $userLanguage = 'es'): array
+    {
+        $message = trans('telegram.subscription_select_periodicity', [], $userLanguage);
+        
+        $periodicities = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+        $keyboard = [];
+        
+        foreach (array_chunk($periodicities, 2) as $row) {
+            $keyboardRow = [];
+            foreach ($row as $periodicity) {
+                $keyboardRow[] = [
+                    'text' => trans('telegram.periodicity.'.$periodicity, [], $userLanguage),
+                    'callback_data' => "subscription_period_{$periodicity}_{$expenseId}",
+                ];
+            }
+            $keyboard[] = $keyboardRow;
+        }
+        
+        // Add cancel button
+        $keyboard[] = [
+            [
+                'text' => trans('telegram.button_cancel', [], $userLanguage),
+                'callback_data' => "subscription_cancel_{$expenseId}",
+            ],
+        ];
+        
+        return $this->sendMessageWithKeyboard($chatId, $message, $keyboard, [
+            'parse_mode' => 'Markdown',
+        ]);
+    }
+
+    /**
      * Send category selection
      */
     public function sendCategorySelection(string $chatId, ?int $currentCategoryId = null, string $userLanguage = 'es'): array
