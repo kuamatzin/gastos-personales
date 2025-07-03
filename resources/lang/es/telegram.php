@@ -251,9 +251,9 @@ return [
     'button_yes_subscription' => '✅ Sí, es suscripción',
     'button_no_subscription' => '❌ No, pago único',
     'subscription_select_periodicity' => '📅 *¿Con qué frecuencia se cobra esta suscripción?*',
-    'subscription_created' => '✅ Suscripción creada exitosamente:\n\n📝 Nombre: :name\n💵 Monto: $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge',
+    'subscription_created' => "✅ Suscripción creada exitosamente:\n\n📝 Nombre: :name\n💵 Monto: $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge",
     'subscription_cancelled' => '❌ Creación de suscripción cancelada.',
-    'subscription_existing' => '⚠️ Ya existe una suscripción similar:\n📝 :name\n💵 $:amount :currency\n📅 :periodicity',
+    'subscription_existing' => "⚠️ Ya existe una suscripción similar:\n📝 :name\n💵 $:amount :currency\n📅 :periodicity",
     
     // Periodicity translations
     'periodicity' => [
@@ -267,10 +267,10 @@ return [
     
     // Subscription commands
     'subscriptions_title' => '🔄 *Suscripciones Activas*',
-    'subscription_info' => '• :name\n  💵 $:amount :currency :periodicity\n  📆 Próximo: :next_charge',
+    'subscription_info' => "• :name\n  💵 $:amount :currency :periodicity\n  📆 Próximo: :next_charge",
     'no_subscriptions' => 'No tienes suscripciones activas.',
     'subscription_expenses_title' => '🔄 *Cobros de Suscripciones - :month*',
-    'subscription_expense_info' => '• :date - :name\n  💵 $:amount :currency',
+    'subscription_expense_info' => "• :date - :name\n  💵 $:amount :currency",
     'no_subscription_expenses' => 'No hay cobros de suscripciones este mes.',
     'subscription_payment_processed' => "✅ Cobro de suscripción procesado:\n\n📝 :name\n💵 $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge",
     'total_monthly_subscriptions' => 'Total mensual estimado: $:amount',
