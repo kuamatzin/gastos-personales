@@ -18,7 +18,8 @@ class SubscriptionsCommand extends Command
         try {
             // Get active subscriptions
             $subscriptions = $user->subscriptions()
-                ->where('status', 'active')
+                ->whereIn('status', ['active', 'paused'])
+                ->orderBy('status')
                 ->orderBy('next_charge_date')
                 ->get();
 
@@ -30,45 +31,86 @@ class SubscriptionsCommand extends Command
                 return;
             }
 
-            // Build message
-            $message = trans('telegram.subscriptions_title', [], $language)."\n\n";
+            // Send each subscription as a separate message with management buttons
+            $this->telegram->sendMessage(
+                $chatId,
+                trans('telegram.subscriptions_title', [], $language),
+                ['parse_mode' => 'Markdown']
+            );
             
             $totalMonthly = 0;
             
             foreach ($subscriptions as $subscription) {
                 $periodicityText = $subscription->getPeriodicityText($language);
                 
-                $message .= trans('telegram.subscription_info', [
-                    'name' => $subscription->name,
-                    'amount' => number_format($subscription->amount, 2),
-                    'currency' => $subscription->currency,
-                    'periodicity' => $periodicityText,
-                    'next_charge' => $subscription->next_charge_date->format('d/m/Y'),
-                ], $language)."\n\n";
+                // Build subscription message
+                $subMessage = "📦 *{$subscription->name}*\n";
+                $subMessage .= "💵 $" . number_format($subscription->amount, 2) . " {$subscription->currency} - {$periodicityText}\n";
                 
-                // Calculate monthly equivalent
-                $monthlyAmount = match($subscription->periodicity) {
-                    'daily' => $subscription->amount * 30,
-                    'weekly' => $subscription->amount * 4.33,
-                    'biweekly' => $subscription->amount * 2.17,
-                    'monthly' => $subscription->amount,
-                    'quarterly' => $subscription->amount / 3,
-                    'yearly' => $subscription->amount / 12,
-                    default => 0,
-                };
+                if ($subscription->status === 'paused') {
+                    $subMessage .= "⏸️ " . trans('telegram.subscription_paused', [], $language) . "\n";
+                } else {
+                    $subMessage .= "📆 " . trans('telegram.next_charge', ['date' => $subscription->next_charge_date->format('d/m/Y')], $language) . "\n";
+                }
                 
-                $totalMonthly += $monthlyAmount;
+                if ($subscription->category) {
+                    $subMessage .= "🏷️ {$subscription->category->getTranslatedName($language)}\n";
+                }
+                
+                // Create management keyboard
+                $keyboard = [];
+                
+                if ($subscription->status === 'active') {
+                    $keyboard[] = [
+                        [
+                            'text' => trans('telegram.button_pause_subscription', [], $language),
+                            'callback_data' => "sub_pause_{$subscription->id}",
+                        ],
+                        [
+                            'text' => trans('telegram.button_cancel_subscription', [], $language),
+                            'callback_data' => "sub_cancel_{$subscription->id}",
+                        ],
+                    ];
+                } else {
+                    $keyboard[] = [
+                        [
+                            'text' => trans('telegram.button_resume_subscription', [], $language),
+                            'callback_data' => "sub_resume_{$subscription->id}",
+                        ],
+                        [
+                            'text' => trans('telegram.button_cancel_subscription', [], $language),
+                            'callback_data' => "sub_cancel_{$subscription->id}",
+                        ],
+                    ];
+                }
+                
+                $this->telegram->sendMessageWithKeyboard($chatId, $subMessage, $keyboard, [
+                    'parse_mode' => 'Markdown',
+                ]);
+                
+                // Calculate monthly equivalent (only for active subscriptions)
+                if ($subscription->status === 'active') {
+                    $monthlyAmount = match($subscription->periodicity) {
+                        'daily' => $subscription->amount * 30,
+                        'weekly' => $subscription->amount * 4.33,
+                        'biweekly' => $subscription->amount * 2.17,
+                        'monthly' => $subscription->amount,
+                        'quarterly' => $subscription->amount / 3,
+                        'yearly' => $subscription->amount / 12,
+                        default => 0,
+                    };
+                    
+                    $totalMonthly += $monthlyAmount;
+                }
             }
             
             if ($totalMonthly > 0) {
-                $message .= "\n💰 ".trans('telegram.total_monthly_subscriptions', [
+                $summaryMessage = "\n💰 ".trans('telegram.total_monthly_subscriptions', [
                     'amount' => number_format($totalMonthly, 2),
                 ], $language);
+                
+                $this->telegram->sendMessage($chatId, $summaryMessage);
             }
-
-            $this->telegram->sendMessage($chatId, $message, [
-                'parse_mode' => 'Markdown',
-            ]);
 
         } catch (\Exception $e) {
             Log::error('Error in SubscriptionsCommand', [

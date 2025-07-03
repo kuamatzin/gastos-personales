@@ -274,4 +274,18 @@ return [
     'no_subscription_expenses' => 'No hay cobros de suscripciones este mes.',
     'subscription_payment_processed' => "✅ Cobro de suscripción procesado:\n\n📝 :name\n💵 $:amount :currency\n📅 Periodicidad: :periodicity\n📆 Próximo cobro: :next_charge",
     'total_monthly_subscriptions' => 'Total mensual estimado: $:amount',
+    
+    // Subscription management
+    'subscription_paused' => 'En pausa',
+    'next_charge' => 'Próximo cobro: :date',
+    'button_pause_subscription' => '⏸️ Pausar',
+    'button_resume_subscription' => '▶️ Reanudar',
+    'button_cancel_subscription' => '❌ Cancelar',
+    'subscription_not_found' => '❌ Suscripción no encontrada.',
+    'subscription_paused_success' => "⏸️ Suscripción pausada: *:name*\n\nNo se realizarán cobros mientras esté pausada.",
+    'subscription_resumed_success' => "▶️ Suscripción reactivada: *:name*\n\n📆 Próximo cobro: :next_charge",
+    'subscription_cancel_confirm' => "⚠️ ¿Estás seguro de que deseas cancelar la suscripción?\n\n*:name*\n\nEsta acción no se puede deshacer.",
+    'button_confirm_cancel' => '✅ Sí, cancelar',
+    'button_keep_subscription' => '❌ No, mantener',
+    'subscription_cancelled_success' => "❌ Suscripción cancelada: *:name*\n\nNo se realizarán más cobros.",
 ];

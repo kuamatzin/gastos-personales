@@ -274,4 +274,18 @@ return [
     'no_subscription_expenses' => 'No subscription charges this month.',
     'subscription_payment_processed' => "✅ Subscription charge processed:\n\n📝 :name\n💵 $:amount :currency\n📅 Periodicity: :periodicity\n📆 Next charge: :next_charge",
     'total_monthly_subscriptions' => 'Estimated monthly total: $:amount',
+    
+    // Subscription management
+    'subscription_paused' => 'Paused',
+    'next_charge' => 'Next charge: :date',
+    'button_pause_subscription' => '⏸️ Pause',
+    'button_resume_subscription' => '▶️ Resume',
+    'button_cancel_subscription' => '❌ Cancel',
+    'subscription_not_found' => '❌ Subscription not found.',
+    'subscription_paused_success' => "⏸️ Subscription paused: *:name*\n\nNo charges will be made while paused.",
+    'subscription_resumed_success' => "▶️ Subscription resumed: *:name*\n\n📆 Next charge: :next_charge",
+    'subscription_cancel_confirm' => "⚠️ Are you sure you want to cancel this subscription?\n\n*:name*\n\nThis action cannot be undone.",
+    'button_confirm_cancel' => '✅ Yes, cancel',
+    'button_keep_subscription' => '❌ No, keep it',
+    'subscription_cancelled_success' => "❌ Subscription cancelled: *:name*\n\nNo more charges will be made.",
 ];

@@ -171,6 +171,22 @@ class TelegramWebhookController extends Controller
             // Handle subscription creation cancellation
             $user = \App\Models\User::where('telegram_id', $userId)->first();
             $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_cancelled', [], $user->language ?? 'es'));
+        } elseif (strpos($data, 'sub_pause_') === 0) {
+            // Handle subscription pause
+            $subscriptionId = str_replace('sub_pause_', '', $data);
+            $this->handleSubscriptionPause($chatId, $messageId, $subscriptionId, $userId);
+        } elseif (strpos($data, 'sub_resume_') === 0) {
+            // Handle subscription resume
+            $subscriptionId = str_replace('sub_resume_', '', $data);
+            $this->handleSubscriptionResume($chatId, $messageId, $subscriptionId, $userId);
+        } elseif (strpos($data, 'sub_cancel_') === 0) {
+            // Handle subscription cancellation
+            $subscriptionId = str_replace('sub_cancel_', '', $data);
+            $this->handleSubscriptionCancel($chatId, $messageId, $subscriptionId, $userId);
+        } elseif (strpos($data, 'sub_confirm_cancel_') === 0) {
+            // Handle subscription cancellation confirmation
+            $subscriptionId = str_replace('sub_confirm_cancel_', '', $data);
+            $this->confirmSubscriptionCancel($chatId, $messageId, $subscriptionId, $userId);
         } elseif ($data === 'cancel') {
             // Handle generic cancel
             $user = \App\Models\User::where('telegram_id', $userId)->first();
@@ -1100,6 +1116,154 @@ class TelegramWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'data' => $data,
                 'user_telegram_id' => $userId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleSubscriptionPause(string $chatId, int $messageId, string $subscriptionId, string $userId)
+    {
+        try {
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                return;
+            }
+
+            $subscription = $user->subscriptions()->find($subscriptionId);
+            if (!$subscription) {
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            $subscription->pause();
+
+            $message = trans('telegram.subscription_paused_success', [
+                'name' => $subscription->name,
+            ], $user->language ?? 'es');
+
+            $this->telegram->editMessage($chatId, $messageId, $message);
+
+        } catch (\Exception $e) {
+            Log::error('Error pausing subscription', [
+                'error' => $e->getMessage(),
+                'subscription_id' => $subscriptionId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleSubscriptionResume(string $chatId, int $messageId, string $subscriptionId, string $userId)
+    {
+        try {
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                return;
+            }
+
+            $subscription = $user->subscriptions()->find($subscriptionId);
+            if (!$subscription) {
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            $subscription->resume();
+
+            $message = trans('telegram.subscription_resumed_success', [
+                'name' => $subscription->name,
+                'next_charge' => $subscription->next_charge_date->format('d/m/Y'),
+            ], $user->language ?? 'es');
+
+            $this->telegram->editMessage($chatId, $messageId, $message);
+
+        } catch (\Exception $e) {
+            Log::error('Error resuming subscription', [
+                'error' => $e->getMessage(),
+                'subscription_id' => $subscriptionId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleSubscriptionCancel(string $chatId, int $messageId, string $subscriptionId, string $userId)
+    {
+        try {
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                return;
+            }
+
+            $subscription = $user->subscriptions()->find($subscriptionId);
+            if (!$subscription) {
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            // Ask for confirmation
+            $message = trans('telegram.subscription_cancel_confirm', [
+                'name' => $subscription->name,
+            ], $user->language ?? 'es');
+
+            $keyboard = [
+                [
+                    [
+                        'text' => trans('telegram.button_confirm_cancel', [], $user->language ?? 'es'),
+                        'callback_data' => "sub_confirm_cancel_{$subscriptionId}",
+                    ],
+                    [
+                        'text' => trans('telegram.button_keep_subscription', [], $user->language ?? 'es'),
+                        'callback_data' => "cancel",
+                    ],
+                ],
+            ];
+
+            $this->telegram->editMessage($chatId, $messageId, $message, [
+                'parse_mode' => 'Markdown',
+                'reply_markup' => json_encode(['inline_keyboard' => $keyboard]),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error cancelling subscription', [
+                'error' => $e->getMessage(),
+                'subscription_id' => $subscriptionId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function confirmSubscriptionCancel(string $chatId, int $messageId, string $subscriptionId, string $userId)
+    {
+        try {
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                return;
+            }
+
+            $subscription = $user->subscriptions()->find($subscriptionId);
+            if (!$subscription) {
+                $this->telegram->editMessage($chatId, $messageId, trans('telegram.subscription_not_found', [], $user->language ?? 'es'));
+                return;
+            }
+
+            $subscription->cancel();
+
+            $message = trans('telegram.subscription_cancelled_success', [
+                'name' => $subscription->name,
+            ], $user->language ?? 'es');
+
+            $this->telegram->editMessage($chatId, $messageId, $message);
+
+        } catch (\Exception $e) {
+            Log::error('Error confirming subscription cancellation', [
+                'error' => $e->getMessage(),
+                'subscription_id' => $subscriptionId,
             ]);
 
             $user = \App\Models\User::where('telegram_id', $userId)->first();
