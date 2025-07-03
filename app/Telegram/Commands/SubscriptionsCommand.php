@@ -2,21 +2,17 @@
 
 namespace App\Telegram\Commands;
 
-use App\Telegram\Commands\BaseCommand;
 use App\Models\Subscription;
 use Illuminate\Support\Facades\Log;
 
-class SubscriptionsCommand extends BaseCommand
+class SubscriptionsCommand extends Command
 {
     protected string $name = 'subscriptions';
-    protected string $nameEs = 'suscripciones';
-    protected string $description = 'View active subscriptions';
-    protected string $descriptionEs = 'Ver suscripciones activas';
 
     public function handle(array $message, string $params = ''): void
     {
         $chatId = $message['chat']['id'];
-        $user = $this->getUser($message);
+        $user = $this->user;
         $language = $user->language ?? 'es';
 
         try {

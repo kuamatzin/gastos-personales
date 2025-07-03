@@ -2,22 +2,18 @@
 
 namespace App\Telegram\Commands;
 
-use App\Telegram\Commands\BaseCommand;
 use App\Models\SubscriptionExpense;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class SubscriptionExpensesCommand extends BaseCommand
+class SubscriptionExpensesCommand extends Command
 {
     protected string $name = 'subscription_expenses';
-    protected string $nameEs = 'gastos_suscripciones';
-    protected string $description = 'View subscription charges for this month';
-    protected string $descriptionEs = 'Ver cobros de suscripciones del mes';
 
     public function handle(array $message, string $params = ''): void
     {
         $chatId = $message['chat']['id'];
-        $user = $this->getUser($message);
+        $user = $this->user;
         $language = $user->language ?? 'es';
 
         try {
