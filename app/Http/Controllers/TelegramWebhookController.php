@@ -1319,6 +1319,28 @@ class TelegramWebhookController extends Controller
                     $this->sendTestDailySummary($chatId, $messageId, $user);
                     break;
 
+                case 'notif_weekly_enable':
+                    $notifications['weekly_summary'] = true;
+                    $preferences['notifications'] = $notifications;
+                    $user->preferences = $preferences;
+                    $user->save();
+
+                    $this->telegram->editMessage($chatId, $messageId, 
+                        trans('telegram.weekly_summary_enabled_success', [], $user->language ?? 'es')
+                    );
+                    break;
+
+                case 'notif_weekly_disable':
+                    $notifications['weekly_summary'] = false;
+                    $preferences['notifications'] = $notifications;
+                    $user->preferences = $preferences;
+                    $user->save();
+
+                    $this->telegram->editMessage($chatId, $messageId, 
+                        trans('telegram.weekly_summary_disabled_success', [], $user->language ?? 'es')
+                    );
+                    break;
+
                 default:
                     // Handle time selection (e.g., notif_time_20)
                     if (strpos($data, 'notif_time_') === 0) {

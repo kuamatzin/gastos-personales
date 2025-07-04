@@ -20,6 +20,7 @@ class NotificationsCommand extends Command
             
             $dailySummaryEnabled = $notifications['daily_summary'] ?? false;
             $dailySummaryTime = $notifications['daily_summary_time'] ?? 21;
+            $weeklySummaryEnabled = $notifications['weekly_summary'] ?? false;
             
             $message = trans('telegram.notifications_title', [], $language) . "\n\n";
             
@@ -32,9 +33,17 @@ class NotificationsCommand extends Command
                 $message .= "❌ " . trans('telegram.daily_summary_disabled', [], $language) . "\n";
             }
             
+            // Weekly summary status
+            if ($weeklySummaryEnabled) {
+                $message .= "✅ " . trans('telegram.weekly_summary_enabled', [], $language) . "\n";
+            } else {
+                $message .= "❌ " . trans('telegram.weekly_summary_disabled', [], $language) . "\n";
+            }
+            
             // Create keyboard
             $keyboard = [];
             
+            // Daily summary buttons
             if ($dailySummaryEnabled) {
                 $keyboard[] = [
                     [
@@ -51,6 +60,23 @@ class NotificationsCommand extends Command
                     [
                         'text' => trans('telegram.button_enable_daily_summary', [], $language),
                         'callback_data' => 'notif_daily_enable',
+                    ],
+                ];
+            }
+            
+            // Weekly summary buttons
+            if ($weeklySummaryEnabled) {
+                $keyboard[] = [
+                    [
+                        'text' => trans('telegram.button_disable_weekly_summary', [], $language),
+                        'callback_data' => 'notif_weekly_disable',
+                    ],
+                ];
+            } else {
+                $keyboard[] = [
+                    [
+                        'text' => trans('telegram.button_enable_weekly_summary', [], $language),
+                        'callback_data' => 'notif_weekly_enable',
                     ],
                 ];
             }
