@@ -204,4 +204,20 @@ class Subscription extends Model
     {
         $this->update(['status' => 'cancelled']);
     }
+
+    /**
+     * Get the monthly equivalent amount
+     */
+    public function getMonthlyEquivalent(): float
+    {
+        return match ($this->periodicity) {
+            'daily' => $this->amount * 30, // Approximate month as 30 days
+            'weekly' => $this->amount * 4.33, // Average weeks per month
+            'biweekly' => $this->amount * 2,
+            'monthly' => $this->amount,
+            'quarterly' => $this->amount / 3,
+            'yearly' => $this->amount / 12,
+            default => $this->amount,
+        };
+    }
 }

@@ -22,6 +22,8 @@ class NotificationsCommand extends Command
             $dailySummaryTime = $notifications['daily_summary_time'] ?? 21;
             $weeklySummaryEnabled = $notifications['weekly_summary'] ?? false;
             $weeklySummaryTime = $notifications['weekly_summary_time'] ?? 20;
+            $monthlySummaryEnabled = $notifications['monthly_summary'] ?? false;
+            $monthlySummaryTime = $notifications['monthly_summary_time'] ?? 20;
             
             $message = trans('telegram.notifications_title', [], $language) . "\n\n";
             
@@ -41,6 +43,15 @@ class NotificationsCommand extends Command
                 ], $language) . "\n";
             } else {
                 $message .= "❌ " . trans('telegram.weekly_summary_disabled', [], $language) . "\n";
+            }
+            
+            // Monthly summary status
+            if ($monthlySummaryEnabled) {
+                $message .= "✅ " . trans('telegram.monthly_summary_enabled_with_time', [
+                    'time' => $monthlySummaryTime . ':00',
+                ], $language) . "\n";
+            } else {
+                $message .= "❌ " . trans('telegram.monthly_summary_disabled', [], $language) . "\n";
             }
             
             // Create keyboard
@@ -84,6 +95,27 @@ class NotificationsCommand extends Command
                     [
                         'text' => trans('telegram.button_enable_weekly_summary', [], $language),
                         'callback_data' => 'notif_weekly_enable',
+                    ],
+                ];
+            }
+            
+            // Monthly summary buttons
+            if ($monthlySummaryEnabled) {
+                $keyboard[] = [
+                    [
+                        'text' => trans('telegram.button_disable_monthly_summary', [], $language),
+                        'callback_data' => 'notif_monthly_disable',
+                    ],
+                    [
+                        'text' => trans('telegram.button_change_monthly_time', [], $language),
+                        'callback_data' => 'notif_monthly_time',
+                    ],
+                ];
+            } else {
+                $keyboard[] = [
+                    [
+                        'text' => trans('telegram.button_enable_monthly_summary', [], $language),
+                        'callback_data' => 'notif_monthly_enable',
                     ],
                 ];
             }

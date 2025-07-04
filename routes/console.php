@@ -34,3 +34,9 @@ Schedule::command('summaries:send-weekly')
     ->timezone('America/Mexico_City')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/weekly-summaries.log'));
+
+Schedule::command('summaries:send-monthly')
+    ->hourly()
+    ->timezone('America/Mexico_City')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/monthly-summaries.log'));
