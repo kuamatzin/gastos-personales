@@ -125,19 +125,6 @@ class TelegramService
     }
 
     /**
-     * Delete a message
-     */
-    public function deleteMessage(string $chatId, int $messageId): array
-    {
-        $response = Http::post("{$this->apiUrl}/deleteMessage", [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
-        ]);
-
-        return $response->json();
-    }
-
-    /**
      * Answer callback query
      */
     public function answerCallbackQuery(string $callbackId, array $options = []): array
