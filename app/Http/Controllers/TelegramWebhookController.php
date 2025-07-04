@@ -187,6 +187,9 @@ class TelegramWebhookController extends Controller
             // Handle subscription cancellation confirmation
             $subscriptionId = str_replace('sub_confirm_cancel_', '', $data);
             $this->confirmSubscriptionCancel($chatId, $messageId, $subscriptionId, $userId);
+        } elseif (strpos($data, 'notif_') === 0) {
+            // Handle notification settings
+            $this->handleNotificationSettings($chatId, $messageId, $userId, $data);
         } elseif ($data === 'cancel') {
             // Handle generic cancel
             $user = \App\Models\User::where('telegram_id', $userId)->first();
@@ -1268,6 +1271,145 @@ class TelegramWebhookController extends Controller
 
             $user = \App\Models\User::where('telegram_id', $userId)->first();
             $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function handleNotificationSettings(string $chatId, int $messageId, string $userId, string $data)
+    {
+        try {
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            if (!$user) {
+                return;
+            }
+
+            $preferences = $user->preferences ?? [];
+            $notifications = $preferences['notifications'] ?? [];
+
+            switch ($data) {
+                case 'notif_daily_enable':
+                    $notifications['daily_summary'] = true;
+                    $notifications['daily_summary_time'] = 21; // Default to 9 PM
+                    $preferences['notifications'] = $notifications;
+                    $user->preferences = $preferences;
+                    $user->save();
+
+                    $this->telegram->editMessage($chatId, $messageId, 
+                        trans('telegram.daily_summary_enabled_success', [], $user->language ?? 'es')
+                    );
+                    break;
+
+                case 'notif_daily_disable':
+                    $notifications['daily_summary'] = false;
+                    $preferences['notifications'] = $notifications;
+                    $user->preferences = $preferences;
+                    $user->save();
+
+                    $this->telegram->editMessage($chatId, $messageId, 
+                        trans('telegram.daily_summary_disabled_success', [], $user->language ?? 'es')
+                    );
+                    break;
+
+                case 'notif_daily_time':
+                    // Show time selection
+                    $this->showTimeSelection($chatId, $messageId, $user);
+                    break;
+
+                case 'notif_test_daily':
+                    // Send test daily summary
+                    $this->sendTestDailySummary($chatId, $messageId, $user);
+                    break;
+
+                default:
+                    // Handle time selection (e.g., notif_time_20)
+                    if (strpos($data, 'notif_time_') === 0) {
+                        $hour = (int) str_replace('notif_time_', '', $data);
+                        $notifications['daily_summary'] = true;
+                        $notifications['daily_summary_time'] = $hour;
+                        $preferences['notifications'] = $notifications;
+                        $user->preferences = $preferences;
+                        $user->save();
+
+                        $this->telegram->editMessage($chatId, $messageId, 
+                            trans('telegram.daily_summary_time_updated', [
+                                'time' => $hour . ':00'
+                            ], $user->language ?? 'es')
+                        );
+                    }
+                    break;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error handling notification settings', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_telegram_id' => $userId,
+            ]);
+
+            $user = \App\Models\User::where('telegram_id', $userId)->first();
+            $this->telegram->editMessage($chatId, $messageId, trans('telegram.error_processing', [], $user->language ?? 'es'));
+        }
+    }
+
+    private function showTimeSelection(string $chatId, int $messageId, \App\Models\User $user)
+    {
+        $language = $user->language ?? 'es';
+        $message = trans('telegram.select_notification_time', [], $language);
+        
+        // Create time selection keyboard (common notification times)
+        $keyboard = [
+            [
+                ['text' => '🌅 6:00', 'callback_data' => 'notif_time_6'],
+                ['text' => '☀️ 9:00', 'callback_data' => 'notif_time_9'],
+                ['text' => '🌤️ 12:00', 'callback_data' => 'notif_time_12'],
+            ],
+            [
+                ['text' => '🌇 18:00', 'callback_data' => 'notif_time_18'],
+                ['text' => '🌆 20:00', 'callback_data' => 'notif_time_20'],
+                ['text' => '🌙 21:00', 'callback_data' => 'notif_time_21'],
+            ],
+            [
+                ['text' => '🌌 22:00', 'callback_data' => 'notif_time_22'],
+                ['text' => '🌃 23:00', 'callback_data' => 'notif_time_23'],
+            ],
+            [
+                ['text' => trans('telegram.button_cancel', [], $language), 'callback_data' => 'cancel'],
+            ],
+        ];
+
+        $this->telegram->editMessage($chatId, $messageId, $message, [
+            'parse_mode' => 'Markdown',
+            'reply_markup' => json_encode(['inline_keyboard' => $keyboard]),
+        ]);
+    }
+
+    private function sendTestDailySummary(string $chatId, int $messageId, \App\Models\User $user)
+    {
+        try {
+            // Delete the original message
+            $this->telegram->deleteMessage($chatId, $messageId);
+            
+            // Run the command for this specific user
+            \Artisan::call('summaries:send-daily', [
+                '--user' => $user->id,
+            ]);
+            
+            // If no expenses today, inform the user
+            $output = \Artisan::output();
+            if (str_contains($output, 'No expenses today')) {
+                $this->telegram->sendMessage($chatId, 
+                    trans('telegram.no_expenses_for_summary', [], $user->language ?? 'es')
+                );
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Error sending test daily summary', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id,
+            ]);
+            
+            $this->telegram->sendMessage($chatId, 
+                trans('telegram.error_sending_test_summary', [], $user->language ?? 'es')
+            );
         }
     }
 }

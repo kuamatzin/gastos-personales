@@ -15,6 +15,7 @@ use App\Telegram\Commands\InstallmentsCommand;
 use App\Telegram\Commands\InstallmentExpensesCommand;
 use App\Telegram\Commands\SubscriptionsCommand;
 use App\Telegram\Commands\SubscriptionExpensesCommand;
+use App\Telegram\Commands\NotificationsCommand;
 use App\Telegram\Commands\SetLanguageCommand;
 use App\Telegram\Commands\SetTimezoneCommand;
 use App\Telegram\Commands\StartCommand;
@@ -45,6 +46,7 @@ class CommandRouter
         '/installment_expenses' => InstallmentExpensesCommand::class,
         '/subscriptions' => SubscriptionsCommand::class,
         '/subscription_expenses' => SubscriptionExpensesCommand::class,
+        '/notifications' => NotificationsCommand::class,
     ];
 
     /**
@@ -105,6 +107,11 @@ class CommandRouter
         '/gastos_recurrentes' => '/subscription_expenses',
         '/subscriptionexpenses' => '/subscription_expenses',
         '/suscripciones_gastos' => '/subscription_expenses',
+        '/notificaciones' => '/notifications',
+        '/notifs' => '/notifications',
+        '/alertas' => '/notifications',
+        '/resumen' => '/notifications',
+        '/summary' => '/notifications',
     ];
 
     private TelegramService $telegram;

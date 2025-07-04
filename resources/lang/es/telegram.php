@@ -288,4 +288,30 @@ return [
     'button_confirm_cancel' => '✅ Sí, cancelar',
     'button_keep_subscription' => '❌ No, mantener',
     'subscription_cancelled_success' => "❌ Suscripción cancelada: *:name*\n\nNo se realizarán más cobros.",
+    
+    // Daily summary notifications
+    'notifications_title' => '🔔 *Configuración de Notificaciones*',
+    'daily_summary_enabled' => 'Resumen diario activo a las :time',
+    'daily_summary_disabled' => 'Resumen diario desactivado',
+    'button_enable_daily_summary' => '✅ Activar resumen diario',
+    'button_disable_daily_summary' => '❌ Desactivar resumen diario',
+    'button_change_time' => '🕐 Cambiar hora',
+    'button_test_daily_summary' => '📤 Enviar resumen de prueba',
+    'daily_summary_enabled_success' => '✅ Resumen diario activado. Recibirás un resumen cada día a las 21:00.',
+    'daily_summary_disabled_success' => '❌ Resumen diario desactivado.',
+    'select_notification_time' => '🕐 *¿A qué hora deseas recibir el resumen diario?*',
+    'daily_summary_time_updated' => '✅ Hora actualizada. Recibirás el resumen diario a las :time.',
+    'no_expenses_for_summary' => '📭 No tienes gastos hoy para mostrar en el resumen.',
+    'error_sending_test_summary' => '❌ Error al enviar el resumen de prueba.',
+    
+    // Daily summary content
+    'daily_summary_title' => '📊 *Resumen de gastos - :date*',
+    'daily_summary_by_category' => '📂 *Por categoría:*',
+    'expenses_count' => 'gasto|gastos',
+    'daily_summary_total' => '💰 *Total del día: $:amount* (:count gastos)',
+    'daily_summary_increase' => 'Gastaste :percent% más que ayer (+$:amount)',
+    'daily_summary_decrease' => 'Gastaste :percent% menos que ayer (-$:amount)',
+    'daily_summary_same' => 'Gastaste lo mismo que ayer',
+    'daily_summary_above_average' => 'Hoy gastaste :percent% más que tu promedio semanal',
+    'daily_summary_good_job' => '¡Excelente control de gastos hoy!',
 ];

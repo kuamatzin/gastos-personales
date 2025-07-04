@@ -504,6 +504,29 @@ class TelegramService
     }
 
     /**
+     * Delete a message
+     */
+    public function deleteMessage(string $chatId, int $messageId): array
+    {
+        try {
+            $response = Http::post("{$this->apiUrl}/deleteMessage", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+            ]);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('Failed to delete message', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
      * Escape special Markdown characters
      */
     private function escapeMarkdown(string $text): string

@@ -288,4 +288,30 @@ return [
     'button_confirm_cancel' => '✅ Yes, cancel',
     'button_keep_subscription' => '❌ No, keep it',
     'subscription_cancelled_success' => "❌ Subscription cancelled: *:name*\n\nNo more charges will be made.",
+    
+    // Daily summary notifications
+    'notifications_title' => '🔔 *Notification Settings*',
+    'daily_summary_enabled' => 'Daily summary active at :time',
+    'daily_summary_disabled' => 'Daily summary disabled',
+    'button_enable_daily_summary' => '✅ Enable daily summary',
+    'button_disable_daily_summary' => '❌ Disable daily summary',
+    'button_change_time' => '🕐 Change time',
+    'button_test_daily_summary' => '📤 Send test summary',
+    'daily_summary_enabled_success' => '✅ Daily summary enabled. You will receive a summary every day at 21:00.',
+    'daily_summary_disabled_success' => '❌ Daily summary disabled.',
+    'select_notification_time' => '🕐 *What time would you like to receive the daily summary?*',
+    'daily_summary_time_updated' => '✅ Time updated. You will receive the daily summary at :time.',
+    'no_expenses_for_summary' => '📭 You have no expenses today to show in the summary.',
+    'error_sending_test_summary' => '❌ Error sending test summary.',
+    
+    // Daily summary content
+    'daily_summary_title' => '📊 *Expense Summary - :date*',
+    'daily_summary_by_category' => '📂 *By category:*',
+    'expenses_count' => 'expense|expenses',
+    'daily_summary_total' => '💰 *Daily total: $:amount* (:count expenses)',
+    'daily_summary_increase' => 'You spent :percent% more than yesterday (+$:amount)',
+    'daily_summary_decrease' => 'You spent :percent% less than yesterday (-$:amount)',
+    'daily_summary_same' => 'You spent the same as yesterday',
+    'daily_summary_above_average' => 'Today you spent :percent% more than your weekly average',
+    'daily_summary_good_job' => 'Excellent expense control today!',
 ];

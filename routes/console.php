@@ -22,3 +22,8 @@ Schedule::command('subscriptions:process-due')
     ->timezone('America/Mexico_City')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/subscriptions.log'));
+
+Schedule::command('summaries:send-daily')
+    ->hourly()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/daily-summaries.log'));
