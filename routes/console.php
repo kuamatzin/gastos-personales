@@ -29,9 +29,8 @@ Schedule::command('summaries:send-daily')
     ->appendOutputTo(storage_path('logs/daily-summaries.log'));
 
 Schedule::command('summaries:send-weekly')
-    ->weekly()
+    ->hourly()
     ->sundays()
-    ->at('20:00')
     ->timezone('America/Mexico_City')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/weekly-summaries.log'));

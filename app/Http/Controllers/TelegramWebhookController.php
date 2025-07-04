@@ -1321,6 +1321,7 @@ class TelegramWebhookController extends Controller
 
                 case 'notif_weekly_enable':
                     $notifications['weekly_summary'] = true;
+                    $notifications['weekly_summary_time'] = 20; // Default to 8 PM
                     $preferences['notifications'] = $notifications;
                     $user->preferences = $preferences;
                     $user->save();
@@ -1341,9 +1342,27 @@ class TelegramWebhookController extends Controller
                     );
                     break;
 
+                case 'notif_weekly_time':
+                    // Show weekly time selection
+                    $this->showWeeklyTimeSelection($chatId, $messageId, $user);
+                    break;
+
                 default:
-                    // Handle time selection (e.g., notif_time_20)
-                    if (strpos($data, 'notif_time_') === 0) {
+                    // Handle time selection (e.g., notif_time_20 or notif_weekly_time_20)
+                    if (strpos($data, 'notif_weekly_time_') === 0) {
+                        $hour = (int) str_replace('notif_weekly_time_', '', $data);
+                        $notifications['weekly_summary'] = true;
+                        $notifications['weekly_summary_time'] = $hour;
+                        $preferences['notifications'] = $notifications;
+                        $user->preferences = $preferences;
+                        $user->save();
+
+                        $this->telegram->editMessage($chatId, $messageId, 
+                            trans('telegram.weekly_summary_time_updated', [
+                                'time' => $hour . ':00'
+                            ], $user->language ?? 'es')
+                        );
+                    } elseif (strpos($data, 'notif_time_') === 0) {
                         $hour = (int) str_replace('notif_time_', '', $data);
                         $notifications['daily_summary'] = true;
                         $notifications['daily_summary_time'] = $hour;
@@ -1392,6 +1411,38 @@ class TelegramWebhookController extends Controller
             [
                 ['text' => '🌌 22:00', 'callback_data' => 'notif_time_22'],
                 ['text' => '🌃 23:00', 'callback_data' => 'notif_time_23'],
+            ],
+            [
+                ['text' => trans('telegram.button_cancel', [], $language), 'callback_data' => 'cancel'],
+            ],
+        ];
+
+        $this->telegram->editMessage($chatId, $messageId, $message, [
+            'parse_mode' => 'Markdown',
+            'reply_markup' => json_encode(['inline_keyboard' => $keyboard]),
+        ]);
+    }
+
+    private function showWeeklyTimeSelection(string $chatId, int $messageId, \App\Models\User $user)
+    {
+        $language = $user->language ?? 'es';
+        $message = trans('telegram.select_weekly_notification_time', [], $language);
+        
+        // Create time selection keyboard (common notification times for weekly summary)
+        $keyboard = [
+            [
+                ['text' => '🌅 8:00', 'callback_data' => 'notif_weekly_time_8'],
+                ['text' => '☀️ 10:00', 'callback_data' => 'notif_weekly_time_10'],
+                ['text' => '🌤️ 12:00', 'callback_data' => 'notif_weekly_time_12'],
+            ],
+            [
+                ['text' => '🌇 16:00', 'callback_data' => 'notif_weekly_time_16'],
+                ['text' => '🌆 18:00', 'callback_data' => 'notif_weekly_time_18'],
+                ['text' => '🌙 20:00', 'callback_data' => 'notif_weekly_time_20'],
+            ],
+            [
+                ['text' => '🌌 21:00', 'callback_data' => 'notif_weekly_time_21'],
+                ['text' => '🌃 22:00', 'callback_data' => 'notif_weekly_time_22'],
             ],
             [
                 ['text' => trans('telegram.button_cancel', [], $language), 'callback_data' => 'cancel'],

@@ -31,18 +31,31 @@ class SendWeeklySummaries extends Command
     {
         $this->info('Sending weekly expense summaries...');
         
+        // Get current hour
+        $currentHour = Carbon::now('America/Mexico_City')->hour;
+        $currentDayOfWeek = Carbon::now('America/Mexico_City')->dayOfWeek;
+        
+        // Only run on Sundays
+        if ($currentDayOfWeek !== Carbon::SUNDAY && !$this->option('user')) {
+            $this->info('Not Sunday, skipping weekly summaries');
+            return Command::SUCCESS;
+        }
+        
         $query = User::where('is_active', true)
             ->whereNotNull('telegram_id')
             ->where('preferences->notifications->weekly_summary', true);
         
-        // If specific user is requested
+        // If specific user is requested (for testing)
         if ($userId = $this->option('user')) {
             $query->where('id', $userId);
+        } else {
+            // Filter by users who want their summary at this hour
+            $query->where('preferences->notifications->weekly_summary_time', $currentHour);
         }
         
         $users = $query->get();
         
-        $this->info("Found {$users->count()} users with weekly summaries enabled");
+        $this->info("Found {$users->count()} users with weekly summaries enabled for hour {$currentHour}:00");
         
         $sent = 0;
         $failed = 0;

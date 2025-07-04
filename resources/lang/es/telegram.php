@@ -331,7 +331,11 @@ return [
     'button_enable_weekly_summary' => '✅ Activar resumen semanal',
     'button_disable_weekly_summary' => '❌ Desactivar resumen semanal',
     'weekly_summary_enabled' => 'Resumen semanal activo (domingos)',
+    'weekly_summary_enabled_with_time' => 'Resumen semanal activo (domingos a las :time)',
     'weekly_summary_disabled' => 'Resumen semanal desactivado',
     'weekly_summary_enabled_success' => '✅ Resumen semanal activado. Recibirás un resumen cada domingo a las 20:00.',
+    'button_change_weekly_time' => '🕐 Cambiar hora semanal',
+    'select_weekly_notification_time' => '🕐 *¿A qué hora deseas recibir el resumen semanal los domingos?*',
+    'weekly_summary_time_updated' => '✅ Hora actualizada. Recibirás el resumen semanal los domingos a las :time.',
     'weekly_summary_disabled_success' => '❌ Resumen semanal desactivado.',
 ];

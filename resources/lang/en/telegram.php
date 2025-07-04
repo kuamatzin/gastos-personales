@@ -331,7 +331,11 @@ return [
     'button_enable_weekly_summary' => '✅ Enable weekly summary',
     'button_disable_weekly_summary' => '❌ Disable weekly summary',
     'weekly_summary_enabled' => 'Weekly summary active (Sundays)',
+    'weekly_summary_enabled_with_time' => 'Weekly summary active (Sundays at :time)',
     'weekly_summary_disabled' => 'Weekly summary disabled',
     'weekly_summary_enabled_success' => '✅ Weekly summary enabled. You will receive a summary every Sunday at 8:00 PM.',
+    'button_change_weekly_time' => '🕐 Change weekly time',
+    'select_weekly_notification_time' => '🕐 *What time would you like to receive the weekly summary on Sundays?*',
+    'weekly_summary_time_updated' => '✅ Time updated. You will receive the weekly summary on Sundays at :time.',
     'weekly_summary_disabled_success' => '❌ Weekly summary disabled.',
 ];

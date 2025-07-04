@@ -21,6 +21,7 @@ class NotificationsCommand extends Command
             $dailySummaryEnabled = $notifications['daily_summary'] ?? false;
             $dailySummaryTime = $notifications['daily_summary_time'] ?? 21;
             $weeklySummaryEnabled = $notifications['weekly_summary'] ?? false;
+            $weeklySummaryTime = $notifications['weekly_summary_time'] ?? 20;
             
             $message = trans('telegram.notifications_title', [], $language) . "\n\n";
             
@@ -35,7 +36,9 @@ class NotificationsCommand extends Command
             
             // Weekly summary status
             if ($weeklySummaryEnabled) {
-                $message .= "✅ " . trans('telegram.weekly_summary_enabled', [], $language) . "\n";
+                $message .= "✅ " . trans('telegram.weekly_summary_enabled_with_time', [
+                    'time' => $weeklySummaryTime . ':00',
+                ], $language) . "\n";
             } else {
                 $message .= "❌ " . trans('telegram.weekly_summary_disabled', [], $language) . "\n";
             }
@@ -70,6 +73,10 @@ class NotificationsCommand extends Command
                     [
                         'text' => trans('telegram.button_disable_weekly_summary', [], $language),
                         'callback_data' => 'notif_weekly_disable',
+                    ],
+                    [
+                        'text' => trans('telegram.button_change_weekly_time', [], $language),
+                        'callback_data' => 'notif_weekly_time',
                     ],
                 ];
             } else {
