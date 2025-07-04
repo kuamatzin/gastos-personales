@@ -1443,6 +1443,7 @@ class TelegramWebhookController extends Controller
             [
                 ['text' => '🌌 21:00', 'callback_data' => 'notif_weekly_time_21'],
                 ['text' => '🌃 22:00', 'callback_data' => 'notif_weekly_time_22'],
+                ['text' => '🌛 23:00', 'callback_data' => 'notif_weekly_time_23'],
             ],
             [
                 ['text' => trans('telegram.button_cancel', [], $language), 'callback_data' => 'cancel'],
